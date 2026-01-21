@@ -59,6 +59,9 @@ Paste a product link, get a complete store ready to sell. New dropshippers can l
 | AliExpress + Amazon as initial sources | Most common dropshipping sources, proven demand | — Pending |
 | Subscription model | Recurring revenue, aligns with ongoing AI costs | — Pending |
 | Salla App Store distribution | Access to 60k+ merchants, credibility | — Pending |
+| React Router 7 framework mode | Single codebase, fast for solo dev, good for dashboard UI | — Pending |
+| Gemini for AI content | Cheaper than GPT, with interface layer for provider swapping | — Pending |
+| AI provider interface layer | Allows swapping Gemini/OpenAI/Claude without code changes | — Pending |
 
 ---
-*Last updated: 2026-01-21 after initialization*
+*Last updated: 2026-01-21 after stack decisions*
