@@ -62,6 +62,10 @@ Paste a product link, get a complete store ready to sell. New dropshippers can l
 | React Router 7 framework mode | Single codebase, fast for solo dev, good for dashboard UI | — Pending |
 | Gemini for AI content | Cheaper than GPT, with interface layer for provider swapping | — Pending |
 | AI provider interface layer | Allows swapping Gemini/OpenAI/Claude without code changes | — Pending |
+| Railway for hosting | Built-in Postgres, simple, ~$5/month, scales as needed | — Pending |
+| Salla OAuth only (no user auth) | Merchants auth via Salla, no separate user system needed | — Pending |
+| Scraper abstraction layer | Plug and play multiple scraper APIs (ScrapingBee, Oxylabs, etc.) | — Pending |
+| Inngest for background jobs | Serverless, free tier, simple — migrate to GCP later | — Pending |
 
 ---
-*Last updated: 2026-01-21 after stack decisions*
+*Last updated: 2026-01-21 after full stack decisions*

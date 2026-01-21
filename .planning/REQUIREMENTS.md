@@ -19,7 +19,7 @@ Requirements for initial release. Each maps to roadmap phases.
 
 - [ ] **SCRAPE-01**: Extract product data from AliExpress links (title, images, price)
 - [ ] **SCRAPE-02**: Extract product data from Amazon links (title, images, price)
-- [ ] **SCRAPE-03**: Handle rate limiting and proxy rotation for reliable scraping
+- [ ] **SCRAPE-03**: Scraper abstraction layer for plug-and-play SaaS APIs
 - [ ] **SCRAPE-04**: Queue-based async scraping (2-4 min processing time)
 
 ### AI Content Generation
@@ -43,11 +43,10 @@ Requirements for initial release. Each maps to roadmap phases.
 - [ ] **BIZ-01**: Subscription billing via Lemon Squeezy (monthly plans)
 - [ ] **BIZ-02**: Merchant dashboard showing imported products and status
 - [ ] **BIZ-03**: Beginner-friendly onboarding flow (guided setup wizard)
-- [ ] **BIZ-04**: User authentication and account management
 
 ### Infrastructure
 
-- [ ] **INFRA-01**: Job queue system for async processing (BullMQ + Redis)
+- [ ] **INFRA-01**: Background job system for async processing (Inngest)
 - [ ] **INFRA-02**: PostgreSQL database for merchant and product data
 - [ ] **INFRA-03**: Real-time AI cost monitoring dashboard
 - [ ] **INFRA-04**: Error handling and retry logic for external APIs
@@ -103,39 +102,38 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SALLA-01 | TBD | Pending |
-| SALLA-02 | TBD | Pending |
-| SALLA-03 | TBD | Pending |
-| SALLA-04 | TBD | Pending |
-| SALLA-05 | TBD | Pending |
-| SCRAPE-01 | TBD | Pending |
-| SCRAPE-02 | TBD | Pending |
-| SCRAPE-03 | TBD | Pending |
-| SCRAPE-04 | TBD | Pending |
-| AI-01 | TBD | Pending |
-| AI-02 | TBD | Pending |
-| AI-03 | TBD | Pending |
-| AI-04 | TBD | Pending |
-| AI-05 | TBD | Pending |
-| STORE-01 | TBD | Pending |
-| STORE-02 | TBD | Pending |
-| STORE-03 | TBD | Pending |
-| STORE-04 | TBD | Pending |
-| STORE-05 | TBD | Pending |
-| BIZ-01 | TBD | Pending |
-| BIZ-02 | TBD | Pending |
-| BIZ-03 | TBD | Pending |
-| BIZ-04 | TBD | Pending |
-| INFRA-01 | TBD | Pending |
-| INFRA-02 | TBD | Pending |
-| INFRA-03 | TBD | Pending |
-| INFRA-04 | TBD | Pending |
+| SALLA-01 | Phase 1 | Pending |
+| SALLA-02 | Phase 1 | Pending |
+| SALLA-04 | Phase 1 | Pending |
+| INFRA-01 | Phase 1 | Pending |
+| INFRA-02 | Phase 1 | Pending |
+| INFRA-04 | Phase 1 | Pending |
+| SCRAPE-01 | Phase 2 | Pending |
+| SCRAPE-02 | Phase 2 | Pending |
+| SCRAPE-03 | Phase 2 | Pending |
+| SCRAPE-04 | Phase 2 | Pending |
+| AI-01 | Phase 3 | Pending |
+| AI-02 | Phase 3 | Pending |
+| AI-03 | Phase 3 | Pending |
+| AI-04 | Phase 3 | Pending |
+| AI-05 | Phase 3 | Pending |
+| INFRA-03 | Phase 3 | Pending |
+| SALLA-03 | Phase 4 | Pending |
+| SALLA-05 | Phase 4 | Pending |
+| STORE-01 | Phase 4 | Pending |
+| STORE-02 | Phase 4 | Pending |
+| STORE-03 | Phase 4 | Pending |
+| STORE-04 | Phase 4 | Pending |
+| STORE-05 | Phase 4 | Pending |
+| BIZ-01 | Phase 5 | Pending |
+| BIZ-02 | Phase 5 | Pending |
+| BIZ-03 | Phase 6 | Pending |
 
 **Coverage:**
-- v1 requirements: 27 total
-- Mapped to phases: 0 (pending roadmap)
-- Unmapped: 27
+- v1 requirements: 26 total
+- Mapped to phases: 26 (100% coverage)
+- Unmapped: 0
 
 ---
 *Requirements defined: 2026-01-21*
-*Last updated: 2026-01-21 after initial definition*
+*Last updated: 2026-01-21 after stack decisions (removed BIZ-04, updated INFRA-01, SCRAPE-03)*
