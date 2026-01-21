@@ -66,6 +66,7 @@ Paste a product link, get a complete store ready to sell. New dropshippers can l
 | Salla OAuth only (no user auth) | Merchants auth via Salla, no separate user system needed | — Pending |
 | Scraper abstraction layer | Plug and play multiple scraper APIs (ScrapingBee, Oxylabs, etc.) | — Pending |
 | Inngest for background jobs | Serverless, free tier, simple — migrate to GCP later | — Pending |
+| Image enhancement: Claid.ai + Nano Banana Pro | Interface layer to swap/compare both providers | — Pending |
 
 ---
 *Last updated: 2026-01-21 after full stack decisions*
