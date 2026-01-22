@@ -1,0 +1,34 @@
+version: "3.8"
+
+# Isolated docker-compose for salla-da9i9a project
+# All resources are prefixed to avoid conflicts with other projects
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: salla-da9i9a-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: salla_da9i9a
+      POSTGRES_PASSWORD: salla_da9i9a_dev
+      POSTGRES_DB: salla_da9i9a
+    ports:
+      - "5433:5432"  # Using 5433 to avoid conflict with other postgres instances
+    volumes:
+      - salla-da9i9a-postgres-data:/var/lib/postgresql/data
+    networks:
+      - salla-da9i9a-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U salla_da9i9a -d salla_da9i9a"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+volumes:
+  salla-da9i9a-postgres-data:
+    name: salla-da9i9a-postgres-data
+
+networks:
+  salla-da9i9a-network:
+    name: salla-da9i9a-network
+    driver: bridge

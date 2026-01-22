@@ -1,0 +1,456 @@
+import type { Route } from "./+types/products.$id";
+import { Link, Form, useNavigation } from "react-router";
+import { redirect, data } from "react-router";
+import { useState } from "react";
+import { db } from "~/lib/db.server";
+import { requireMerchant } from "~/lib/session.server";
+import { GeminiProvider } from "~/services/ai";
+import { SallaClient } from "~/services/salla";
+
+export function meta({}: Route.MetaArgs) {
+  return [
+    { title: "تحرير المنتج - سلة دقيقة" },
+  ];
+}
+
+export async function loader({ request, params }: Route.LoaderArgs) {
+  const merchantId = await requireMerchant(request);
+  const { id } = params;
+
+  const product = await db.product.findFirst({
+    where: { id, merchantId },
+  });
+
+  if (!product) {
+    throw new Response("Product not found", { status: 404 });
+  }
+
+  return {
+    id: product.id,
+    titleAr: product.titleAr,
+    titleEn: product.titleEn,
+    descriptionAr: product.descriptionAr,
+    descriptionEn: product.descriptionEn,
+    price: product.price.toString(),
+    currency: product.currency,
+    images: product.images,
+    selectedImages: product.selectedImages,
+    enhancedImages: product.enhancedImages,
+    status: product.status,
+    sourceUrl: product.sourceUrl,
+    platform: product.platform,
+    sallaProductId: product.sallaProductId,
+  };
+}
+
+export async function action({ request, params }: Route.ActionArgs) {
+  const merchantId = await requireMerchant(request);
+  const { id } = params;
+
+  const formData = await request.formData();
+  const intent = formData.get("intent");
+
+  const product = await db.product.findFirst({
+    where: { id, merchantId },
+    include: { merchant: true },
+  });
+
+  if (!product) {
+    throw new Response("Product not found", { status: 404 });
+  }
+
+  switch (intent) {
+    case "enhance": {
+      const geminiKey = process.env.GEMINI_API_KEY;
+
+      if (!geminiKey) {
+        // Mock enhancement for dev without API key
+        await db.product.update({
+          where: { id },
+          data: {
+            titleAr: product.titleAr || "عنوان محسّن بالذكاء الاصطناعي",
+            titleEn: product.titleEn || "AI Enhanced Title",
+            descriptionAr: product.descriptionAr || "وصف محسّن بالذكاء الاصطناعي. هذا منتج رائع يلبي احتياجاتك.",
+            descriptionEn: product.descriptionEn || "AI Enhanced Description. This is a great product that meets your needs.",
+            status: "ENHANCED",
+          },
+        });
+        return data({ success: true, message: "تم تحسين المنتج (وضع التطوير)", error: null });
+      }
+
+      try {
+        const ai = new GeminiProvider(geminiKey);
+        const enhanced = await ai.enhanceProductText({
+          title: product.titleEn || product.titleAr || "",
+          description: product.descriptionEn || product.descriptionAr || "",
+          targetLanguages: ["ar", "en"],
+        });
+
+        await db.product.update({
+          where: { id },
+          data: {
+            titleAr: enhanced.title.ar,
+            titleEn: enhanced.title.en,
+            descriptionAr: enhanced.description.ar,
+            descriptionEn: enhanced.description.en,
+            status: "ENHANCED",
+          },
+        });
+
+        return data({ success: true, message: "تم تحسين المنتج بنجاح", error: null });
+      } catch (error) {
+        console.error("Enhancement error:", error);
+        return data({ success: false, message: null, error: "فشل في تحسين المنتج" }, { status: 500 });
+      }
+    }
+
+    case "push": {
+      try {
+        // Check token expiry and refresh if needed
+        const merchant = product.merchant;
+        let accessToken = merchant.accessToken;
+
+        if (new Date() >= merchant.tokenExpiresAt) {
+          const newTokens = await SallaClient.refreshToken(
+            process.env.SALLA_CLIENT_ID!,
+            process.env.SALLA_CLIENT_SECRET!,
+            merchant.refreshToken
+          );
+          accessToken = newTokens.access_token;
+
+          await db.merchant.update({
+            where: { id: merchantId },
+            data: {
+              accessToken: newTokens.access_token,
+              refreshToken: newTokens.refresh_token,
+              tokenExpiresAt: new Date(Date.now() + newTokens.expires_in * 1000),
+            },
+          });
+        }
+
+        const salla = new SallaClient(accessToken);
+
+        // Create product in Salla
+        const sallaProduct = await salla.createProduct({
+          name: product.titleAr || product.titleEn || "منتج جديد",
+          description: product.descriptionAr || product.descriptionEn || "",
+          price: Number(product.price),
+          quantity: 100,
+          status: "sale",
+          product_type: "product",
+        });
+
+        // Upload images
+        const imagesToUpload = product.selectedImages.length > 0
+          ? product.selectedImages.map(i => product.images[i]).filter(Boolean)
+          : product.images.slice(0, 5);
+
+        if (imagesToUpload.length > 0 && sallaProduct.id) {
+          await salla.uploadProductImages(sallaProduct.id, imagesToUpload);
+        }
+
+        await db.product.update({
+          where: { id },
+          data: {
+            status: "PUSHED",
+            sallaProductId: sallaProduct.id,
+            pushedAt: new Date(),
+          },
+        });
+
+        return redirect("/dashboard?pushed=true");
+      } catch (error) {
+        console.error("Push to Salla error:", error);
+        await db.product.update({
+          where: { id },
+          data: { status: "FAILED" },
+        });
+        return data({ success: false, message: null, error: "فشل في نشر المنتج على سلة" }, { status: 500 });
+      }
+    }
+
+    case "update": {
+      const titleAr = formData.get("titleAr") as string;
+      const titleEn = formData.get("titleEn") as string;
+      const descriptionAr = formData.get("descriptionAr") as string;
+      const descriptionEn = formData.get("descriptionEn") as string;
+      const price = formData.get("price") as string;
+      const selectedImagesStr = formData.get("selectedImages") as string;
+
+      await db.product.update({
+        where: { id },
+        data: {
+          titleAr: titleAr || null,
+          titleEn: titleEn || null,
+          descriptionAr: descriptionAr || null,
+          descriptionEn: descriptionEn || null,
+          price: parseFloat(price) || product.price,
+          selectedImages: selectedImagesStr ? JSON.parse(selectedImagesStr) : product.selectedImages,
+        },
+      });
+
+      return data({ success: true, message: "تم حفظ التغييرات", error: null });
+    }
+
+    default:
+      return data({ success: false, message: null, error: "إجراء غير معروف" }, { status: 400 });
+  }
+}
+
+const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
+  IMPORTING: { label: "جاري الاستيراد", color: "bg-yellow-100 text-yellow-700" },
+  IMPORTED: { label: "مستورد", color: "bg-gray-100 text-gray-700" },
+  ENHANCED: { label: "محسّن", color: "bg-blue-100 text-blue-700" },
+  PUSHING: { label: "جاري النشر", color: "bg-purple-100 text-purple-700" },
+  PUSHED: { label: "تم النشر", color: "bg-green-100 text-green-700" },
+  FAILED: { label: "فشل", color: "bg-red-100 text-red-700" },
+};
+
+export default function ProductDetail({ loaderData, actionData }: Route.ComponentProps) {
+  const product = loaderData;
+  const navigation = useNavigation();
+  const isSubmitting = navigation.state === "submitting";
+  const [selectedImages, setSelectedImages] = useState<number[]>(product.selectedImages);
+
+  const toggleImage = (index: number) => {
+    setSelectedImages(prev =>
+      prev.includes(index)
+        ? prev.filter(i => i !== index)
+        : [...prev, index]
+    );
+  };
+
+  const status = STATUS_CONFIG[product.status] || STATUS_CONFIG.IMPORTED;
+
+  return (
+    <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
+      {/* Header */}
+      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
+        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <Link to="/dashboard" className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
+              ← العودة
+            </Link>
+            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
+              تحرير المنتج
+            </h1>
+          </div>
+          <span className={`px-3 py-1 text-sm rounded-full ${status.color}`}>
+            {status.label}
+          </span>
+        </div>
+      </header>
+
+      {/* Content */}
+      <div className="container mx-auto px-4 py-8">
+        {(actionData?.message || actionData?.error) && (
+          <div className={`mb-6 p-4 rounded-lg border ${
+            actionData.error
+              ? "bg-red-50 border-red-200 text-red-600"
+              : "bg-green-50 border-green-200 text-green-600"
+          }`}>
+            {actionData.message || actionData.error}
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+          {/* Main Content */}
+          <div className="lg:col-span-2 space-y-6">
+            {/* Images Section */}
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                صور المنتج
+              </h2>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                اختر الصور التي تريد استخدامها في متجرك
+              </p>
+              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                {product.images.map((image, index) => (
+                  <button
+                    key={index}
+                    type="button"
+                    onClick={() => toggleImage(index)}
+                    className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                      selectedImages.includes(index)
+                        ? "border-blue-500 ring-2 ring-blue-500/30"
+                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                    }`}
+                  >
+                    <img src={image} alt={`صورة ${index + 1}`} className="w-full h-full object-cover" />
+                    {selectedImages.includes(index) && (
+                      <div className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-sm">✓</span>
+                      </div>
+                    )}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Product Details Form */}
+            <Form method="post" className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+              <input type="hidden" name="intent" value="update" />
+              <input type="hidden" name="selectedImages" value={JSON.stringify(selectedImages)} />
+
+              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+                تفاصيل المنتج
+              </h2>
+
+              <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    العنوان (عربي)
+                  </label>
+                  <input
+                    type="text"
+                    name="titleAr"
+                    defaultValue={product.titleAr || ""}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    العنوان (إنجليزي)
+                  </label>
+                  <input
+                    type="text"
+                    name="titleEn"
+                    defaultValue={product.titleEn || ""}
+                    dir="ltr"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    الوصف (عربي)
+                  </label>
+                  <textarea
+                    name="descriptionAr"
+                    rows={4}
+                    defaultValue={product.descriptionAr || ""}
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    الوصف (إنجليزي)
+                  </label>
+                  <textarea
+                    name="descriptionEn"
+                    rows={4}
+                    defaultValue={product.descriptionEn || ""}
+                    dir="ltr"
+                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                </div>
+
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      السعر
+                    </label>
+                    <input
+                      type="number"
+                      name="price"
+                      step="0.01"
+                      defaultValue={product.price}
+                      dir="ltr"
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                      العملة
+                    </label>
+                    <input
+                      type="text"
+                      value={product.currency}
+                      disabled
+                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500"
+                    />
+                  </div>
+                </div>
+
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="px-4 py-2 text-sm font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                >
+                  حفظ التغييرات
+                </button>
+              </div>
+            </Form>
+          </div>
+
+          {/* Sidebar - Actions */}
+          <div className="space-y-6">
+            {/* Enhance Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                تحسين بالذكاء الاصطناعي
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                تحسين العنوان والوصف تلقائياً بالعربية والإنجليزية
+              </p>
+              <Form method="post">
+                <input type="hidden" name="intent" value="enhance" />
+                <button
+                  type="submit"
+                  disabled={isSubmitting || product.status === "PUSHED"}
+                  className="w-full px-4 py-3 text-white bg-gradient-to-l from-purple-600 to-blue-600 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {isSubmitting ? "جاري التحسين..." : "✨ تحسين المنتج"}
+                </button>
+              </Form>
+            </div>
+
+            {/* Push to Salla Card */}
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
+              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+                نشر في سلة
+              </h3>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+                إنشاء المنتج في متجرك على سلة
+              </p>
+              <Form method="post">
+                <input type="hidden" name="intent" value="push" />
+                <button
+                  type="submit"
+                  disabled={isSubmitting || product.status === "PUSHED"}
+                  className="w-full px-4 py-3 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                >
+                  {product.status === "PUSHED" ? "✓ تم النشر" : isSubmitting ? "جاري النشر..." : "🚀 نشر في سلة"}
+                </button>
+              </Form>
+              {product.sallaProductId && (
+                <p className="mt-2 text-xs text-gray-500">
+                  معرف المنتج في سلة: {product.sallaProductId}
+                </p>
+              )}
+            </div>
+
+            {/* Source Info */}
+            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">المصدر:</p>
+              <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+                {product.platform === "ALIEXPRESS" ? "AliExpress" : "Amazon"}
+              </p>
+              <a
+                href={product.sourceUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-blue-600 dark:text-blue-400 hover:underline break-all"
+                dir="ltr"
+              >
+                {product.sourceUrl}
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+  );
+}

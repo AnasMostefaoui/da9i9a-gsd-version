@@ -1,0 +1,89 @@
+generator client {
+  provider = "prisma-client"
+  output   = "../generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+// Salla merchant who installed the app
+model Merchant {
+  id              String    @id @default(cuid())
+  sallaId         Int       @unique @map("salla_id")
+  storeName       String    @map("store_name")
+  storeUrl        String    @map("store_url")
+  email           String?
+  accessToken     String    @map("access_token")
+  refreshToken    String    @map("refresh_token")
+  tokenExpiresAt  DateTime  @map("token_expires_at")
+  plan            String?
+  status          MerchantStatus @default(ACTIVE)
+  dataRetention   DataRetention  @default(DELETE_AFTER_30_DAYS) @map("data_retention")
+  uninstalledAt   DateTime?      @map("uninstalled_at")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  products        Product[]
+
+  @@map("merchants")
+}
+
+enum MerchantStatus {
+  ACTIVE
+  UNINSTALLED
+  EXPIRED
+}
+
+enum DataRetention {
+  DELETE_AFTER_30_DAYS
+  KEEP_FOREVER
+}
+
+// Imported product
+model Product {
+  id              String    @id @default(cuid())
+  merchantId      String    @map("merchant_id")
+  merchant        Merchant  @relation(fields: [merchantId], references: [id], onDelete: Cascade)
+
+  // Source info
+  sourceUrl       String    @map("source_url")
+  platform        Platform
+
+  // Product data
+  titleAr         String?   @map("title_ar")
+  titleEn         String?   @map("title_en")
+  descriptionAr   String?   @map("description_ar") @db.Text
+  descriptionEn   String?   @map("description_en") @db.Text
+  price           Decimal   @db.Decimal(10, 2)
+  currency        String    @default("SAR")
+
+  // Images (stored as JSON array of URLs)
+  images          String[]  @default([])
+  selectedImages  Int[]     @default([]) @map("selected_images")
+  enhancedImages  String[]  @default([]) @map("enhanced_images")
+
+  // Status
+  status          ProductStatus @default(IMPORTED)
+  sallaProductId  Int?      @map("salla_product_id")
+  pushedAt        DateTime? @map("pushed_at")
+
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  @@map("products")
+}
+
+enum Platform {
+  ALIEXPRESS
+  AMAZON
+}
+
+enum ProductStatus {
+  IMPORTING    // Scraping in progress
+  IMPORTED     // Scraped, ready for editing
+  ENHANCED     // AI enhancement complete
+  PUSHING      // Push to Salla in progress
+  PUSHED       // Live on Salla
+  FAILED       // Something went wrong
+}
