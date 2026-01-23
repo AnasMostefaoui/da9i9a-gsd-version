@@ -46,6 +46,7 @@ export class SallaClient {
 
   /**
    * Create a new product
+   * Include images array with photo (base64) or original (URL)
    */
   async createProduct(product: Omit<SallaProduct, "id">): Promise<SallaProduct> {
     return this.request<SallaProduct>("/products", {
@@ -68,20 +69,43 @@ export class SallaClient {
   }
 
   /**
-   * Upload product images
-   * Note: Salla expects images to be uploaded separately
+   * Upload product image from URL
+   * Fetches the image and uploads it to Salla as base64
+   */
+  async uploadProductImage(
+    productId: number,
+    imageUrl: string,
+    sort: number = 1
+  ): Promise<void> {
+    // Fetch the image
+    const imageResponse = await fetch(imageUrl);
+    if (!imageResponse.ok) {
+      throw new Error(`Failed to fetch image: ${imageUrl}`);
+    }
+
+    const imageBuffer = await imageResponse.arrayBuffer();
+    const base64 = Buffer.from(imageBuffer).toString("base64");
+    const contentType = imageResponse.headers.get("content-type") || "image/jpeg";
+
+    // Upload to Salla as base64
+    await this.request(`/products/${productId}/images`, {
+      method: "POST",
+      body: JSON.stringify({
+        photo: `data:${contentType};base64,${base64}`,
+        sort,
+      }),
+    });
+  }
+
+  /**
+   * Upload multiple product images
    */
   async uploadProductImages(
     productId: number,
     imageUrls: string[]
   ): Promise<void> {
-    // Salla API expects images to be uploaded via multipart or URL
-    // For POC, we'll use URL-based upload
-    for (const url of imageUrls) {
-      await this.request(`/products/${productId}/images`, {
-        method: "POST",
-        body: JSON.stringify({ url }),
-      });
+    for (let i = 0; i < imageUrls.length; i++) {
+      await this.uploadProductImage(productId, imageUrls[i], i + 1);
     }
   }
 

@@ -52,9 +52,8 @@ export async function action({ request }: Route.ActionArgs) {
         price: 99.99,
         currency: "SAR",
         images: [
-          "https://placehold.co/400x400/3b82f6/ffffff?text=Product+1",
-          "https://placehold.co/400x400/10b981/ffffff?text=Product+2",
-          "https://placehold.co/400x400/f59e0b/ffffff?text=Product+3",
+          "/mock-images/2151232244.jpg",
+          "/mock-images/2151232253.jpg",
         ],
         status: "IMPORTED",
       },

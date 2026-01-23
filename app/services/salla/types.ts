@@ -28,7 +28,13 @@ export interface SallaProduct {
   quantity: number;
   status: "sale" | "out" | "hidden";
   product_type: "product" | "service" | "digital" | "food" | "codes";
-  images?: SallaProductImage[];
+  images?: SallaProductImage[] | SallaProductImageCreate[];
+}
+
+export interface SallaProductImageCreate {
+  photo?: string;      // base64 data URI
+  original?: string;   // URL
+  sort: number;
 }
 
 export interface SallaProductImage {

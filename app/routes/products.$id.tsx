@@ -130,7 +130,18 @@ export async function action({ request, params }: Route.ActionArgs) {
 
         const salla = new SallaClient(accessToken);
 
-        // Create product in Salla
+        // Get images to upload
+        const imagesToUpload = product.selectedImages.length > 0
+          ? product.selectedImages.map(i => product.images[i]).filter(Boolean)
+          : product.images.slice(0, 5);
+
+        // Convert relative URLs to absolute for fetching
+        const baseUrl = new URL(request.url).origin;
+        const absoluteImageUrls = imagesToUpload.map(img =>
+          img.startsWith("http") ? img : `${baseUrl}${img}`
+        );
+
+        // Create product in Salla with image URLs (Salla fetches them)
         const sallaProduct = await salla.createProduct({
           name: product.titleAr || product.titleEn || "منتج جديد",
           description: product.descriptionAr || product.descriptionEn || "",
@@ -138,16 +149,11 @@ export async function action({ request, params }: Route.ActionArgs) {
           quantity: 100,
           status: "sale",
           product_type: "product",
+          images: absoluteImageUrls.map((url, i) => ({
+            original: url,
+            sort: i + 1,
+          })),
         });
-
-        // Upload images
-        const imagesToUpload = product.selectedImages.length > 0
-          ? product.selectedImages.map(i => product.images[i]).filter(Boolean)
-          : product.images.slice(0, 5);
-
-        if (imagesToUpload.length > 0 && sallaProduct.id) {
-          await salla.uploadProductImages(sallaProduct.id, imagesToUpload);
-        }
 
         await db.product.update({
           where: { id },

@@ -66,16 +66,16 @@ Plans:
 - [ ] 03-01: [TBD during plan-phase]
 
 ### Phase 4: Store Generation
-**Goal**: Complete Salla stores deployed with themes and landing pages
+**Goal**: Products deployed to Salla with optimized content
 **Depends on**: Phase 3
-**Requirements**: SALLA-03, SALLA-05, STORE-01, STORE-02, STORE-03, STORE-04, STORE-05
+**Requirements**: SALLA-03, SALLA-05, STORE-01, STORE-02
+**Note**: Salla doesn't allow theme code injection via API (unlike Shopify). MVP uses merchant's existing theme. See FUTURE.md for v2 "Smart Theme" architecture.
 **Success Criteria** (what must be TRUE):
   1. Product appears in merchant's Salla store via API import
-  2. Store has conversion-optimized theme deployed and activated
-  3. Each product gets dedicated landing page with proper layout
-  4. Arabic content displays correctly in RTL layout
-  5. English content displays correctly in LTR layout
-  6. Store loads correctly on mobile devices (MENA's 70% mobile traffic)
+  2. Product has AI-enhanced title, description, and images
+  3. Arabic content displays correctly (merchant's theme handles RTL)
+  4. English content displays correctly
+  5. Product images uploaded successfully to Salla
 **Plans**: TBD
 
 Plans:
@@ -110,10 +110,23 @@ Plans:
 Plans:
 - [ ] 06-01: [TBD during plan-phase]
 
+---
+
+## v2: Smart Theme Architecture (Post-Launch)
+
+See **FUTURE.md** for detailed architecture. Salla doesn't allow code injection like Shopify - we must build "Chameleon Themes" that read AI config at runtime.
+
+- [ ] **Phase 7: Smart Theme Foundation** - Build Twilight theme with CSS variable system
+- [ ] **Phase 8: AI Design Generation** - Color palettes, fonts, layouts from product analysis
+- [ ] **Phase 9: Theme Marketplace** - Multiple Smart Theme variants for merchants
+
+---
+
 ## Progress
 
 **Execution Order:**
-Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
+- v1 (MVP): Phases 1 → 2 → 3 → 4 → 5 → 6
+- v2 (Smart Themes): Phases 7 → 8 → 9
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
@@ -123,3 +136,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5 → 6
 | 4. Store Generation | 0/? | Not started | - |
 | 5. Business & Billing | 0/? | Not started | - |
 | 6. Launch Readiness | 0/? | Not started | - |
+| **v2** | | | |
+| 7. Smart Theme Foundation | 0/? | Future | - |
+| 8. AI Design Generation | 0/? | Future | - |
+| 9. Theme Marketplace | 0/? | Future | - |
