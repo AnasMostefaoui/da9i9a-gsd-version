@@ -34,3 +34,6 @@ coverage/
 *.tsbuildinfo
 
 /generated/prisma
+
+# Apify response cache
+.cache/

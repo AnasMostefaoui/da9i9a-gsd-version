@@ -21,6 +21,7 @@ export async function action({ request }: Route.ActionArgs) {
 
   const formData = await request.formData();
   const url = formData.get("url") as string;
+  const forceRefresh = formData.get("forceRefresh") === "true";
 
   if (!url) {
     return data({ error: "الرجاء إدخال رابط المنتج" }, { status: 400 });
@@ -70,7 +71,7 @@ export async function action({ request }: Route.ActionArgs) {
     console.log(`[Import] Scraping product from ${platform}: ${url}`);
     console.log(`[Import] Available providers: ${orchestrator.getAvailableProviders().join(", ")}`);
 
-    const scraped = await orchestrator.scrapeProduct(url);
+    const scraped = await orchestrator.scrapeProduct(url, forceRefresh);
 
     console.log(`[Import] Successfully scraped: "${scraped.title}" via ${scraped.provider}`);
 
@@ -189,6 +190,19 @@ export default function Import({ actionData }: Route.ComponentProps) {
                     </details>
                   )}
                 </div>
+              )}
+
+              {/* Dev option: force refresh cache */}
+              {process.env.NODE_ENV === "development" && (
+                <label className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
+                  <input
+                    type="checkbox"
+                    name="forceRefresh"
+                    value="true"
+                    className="rounded border-gray-300 dark:border-gray-600"
+                  />
+                  Force refresh (skip cache)
+                </label>
               )}
 
               <button

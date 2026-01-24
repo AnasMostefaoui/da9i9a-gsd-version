@@ -88,8 +88,10 @@ export class ScrapingOrchestrator {
 
   /**
    * Scrape a product URL with automatic fallback
+   * @param url Product URL to scrape
+   * @param forceRefresh Skip cache and fetch fresh data
    */
-  async scrapeProduct(url: string): Promise<ScrapedProduct> {
+  async scrapeProduct(url: string, forceRefresh: boolean = false): Promise<ScrapedProduct> {
     const platform = detectPlatform(url);
     if (!platform) {
       throw new Error(
@@ -133,7 +135,7 @@ export class ScrapingOrchestrator {
             `[Orchestrator] Attempting ${providerName} (attempt ${attempt}/${this.config.maxRetries})`
           );
 
-          const product = await provider.scrapeProduct(url);
+          const product = await provider.scrapeProduct(url, forceRefresh);
           const duration = Date.now() - startTime;
 
           console.log(

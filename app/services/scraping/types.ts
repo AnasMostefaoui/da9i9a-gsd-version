@@ -65,7 +65,11 @@ export interface ShippingInfo {
 export interface ScraperProvider {
   name: string;
   supportedPlatforms: Platform[];
-  scrapeProduct(url: string): Promise<ScrapedProduct>;
+  /**
+   * @param url Product URL to scrape
+   * @param forceRefresh Skip cache and fetch fresh data (optional)
+   */
+  scrapeProduct(url: string, forceRefresh?: boolean): Promise<ScrapedProduct>;
 }
 
 /**
