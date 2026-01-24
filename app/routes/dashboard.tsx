@@ -1,7 +1,7 @@
 import type { Route } from "./+types/dashboard";
 import { Link } from "react-router";
 import { db } from "~/lib/db.server";
-import { requireMerchant } from "~/lib/session.server";
+import { requireMerchant, isDevBypass, DEV_MERCHANT_ID } from "~/lib/session.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -12,7 +12,7 @@ export function meta({}: Route.MetaArgs) {
 export async function loader({ request }: Route.LoaderArgs) {
   const merchantId = await requireMerchant(request);
 
-  const merchant = await db.merchant.findUnique({
+  let merchant = await db.merchant.findUnique({
     where: { id: merchantId },
     include: {
       products: {
@@ -20,6 +20,27 @@ export async function loader({ request }: Route.LoaderArgs) {
       },
     },
   });
+
+  // Create dev merchant if in bypass mode and doesn't exist
+  if (!merchant && isDevBypass()) {
+    merchant = await db.merchant.create({
+      data: {
+        id: DEV_MERCHANT_ID,
+        sallaId: 999999,
+        storeName: "متجر التطوير",
+        storeUrl: "dev-store.salla.sa",
+        email: "dev@test.com",
+        accessToken: "dev-token",
+        refreshToken: "dev-refresh",
+        tokenExpiresAt: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000), // 1 year
+      },
+      include: {
+        products: {
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+  }
 
   if (!merchant) {
     throw new Response("Merchant not found", { status: 404 });

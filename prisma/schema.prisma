@@ -68,6 +68,9 @@ model Product {
   sallaProductId  Int?      @map("salla_product_id")
   pushedAt        DateTime? @map("pushed_at")
 
+  // Additional metadata (scraping info, brand, SKU, etc.)
+  metadata        Json?     @default("{}")
+
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 

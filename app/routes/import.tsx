@@ -3,8 +3,7 @@ import { Form, useNavigation, Link } from "react-router";
 import { redirect, data } from "react-router";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
-import { detectPlatform } from "~/services/scraping";
-import { ScraperAPIProvider } from "~/services/scraping";
+import { detectPlatform, getScrapingOrchestrator } from "~/services/scraping";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -34,11 +33,13 @@ export async function action({ request }: Route.ActionArgs) {
     }, { status: 400 });
   }
 
-  // Check if ScraperAPI key is configured
-  const scraperApiKey = process.env.SCRAPERAPI_KEY;
-  if (!scraperApiKey) {
-    // For development without API key, create product with mock data
-    console.warn("SCRAPERAPI_KEY not set, using mock data");
+  // Check if scraping providers are configured
+  const hasApify = !!process.env.APIFY_TOKEN;
+  const hasOxylabs = !!process.env.OXYLABS_USERNAME && !!process.env.OXYLABS_PASSWORD;
+
+  if (!hasApify && !hasOxylabs) {
+    // For development without providers, create product with mock data
+    console.warn("No scraping providers configured, using mock data");
 
     const product = await db.product.create({
       data: {
@@ -47,8 +48,8 @@ export async function action({ request }: Route.ActionArgs) {
         platform: platform.toUpperCase() as "ALIEXPRESS" | "AMAZON",
         titleEn: `Sample Product from ${platform}`,
         titleAr: `منتج تجريبي من ${platform === "aliexpress" ? "علي إكسبرس" : "أمازون"}`,
-        descriptionEn: "This is a sample product description. Configure SCRAPERAPI_KEY to scrape real products.",
-        descriptionAr: "هذا وصف منتج تجريبي. قم بإعداد SCRAPERAPI_KEY لاستيراد المنتجات الحقيقية.",
+        descriptionEn: "This is a sample product description. Configure APIFY_TOKEN or OXYLABS credentials to scrape real products.",
+        descriptionAr: "هذا وصف منتج تجريبي. قم بإعداد مفاتيح Apify أو Oxylabs لاستيراد المنتجات الحقيقية.",
         price: 99.99,
         currency: "SAR",
         images: [
@@ -63,9 +64,15 @@ export async function action({ request }: Route.ActionArgs) {
   }
 
   try {
-    // Scrape the product
-    const scraper = new ScraperAPIProvider(scraperApiKey);
-    const scraped = await scraper.scrapeProduct(url);
+    // Get the scraping orchestrator (uses fallback chains)
+    const orchestrator = getScrapingOrchestrator();
+
+    console.log(`[Import] Scraping product from ${platform}: ${url}`);
+    console.log(`[Import] Available providers: ${orchestrator.getAvailableProviders().join(", ")}`);
+
+    const scraped = await orchestrator.scrapeProduct(url);
+
+    console.log(`[Import] Successfully scraped: "${scraped.title}" via ${scraped.provider}`);
 
     // Save to database
     const product = await db.product.create({
@@ -79,6 +86,15 @@ export async function action({ request }: Route.ActionArgs) {
         currency: scraped.currency,
         images: scraped.images,
         status: "IMPORTED",
+        // Store additional metadata as JSON if available
+        metadata: JSON.parse(JSON.stringify({
+          scrapedAt: scraped.scrapedAt.toISOString(),
+          provider: scraped.provider,
+          brand: scraped.brand,
+          sku: scraped.sku,
+          reviewSummary: scraped.reviewSummary,
+          seller: scraped.seller,
+        })),
       },
     });
 
@@ -86,13 +102,33 @@ export async function action({ request }: Route.ActionArgs) {
 
   } catch (error) {
     console.error("Scraping error:", error);
-    return data({
-      error: "فشل في استيراد المنتج. يرجى التأكد من صحة الرابط والمحاولة مرة أخرى."
-    }, { status: 500 });
+
+    const errorMessage = error instanceof Error ? error.message : String(error);
+
+    // Provide more specific error messages
+    let userMessage = "فشل في استيراد المنتج. يرجى التأكد من صحة الرابط والمحاولة مرة أخرى.";
+
+    if (errorMessage.includes("No title")) {
+      userMessage = "لم يتم العثور على بيانات المنتج. تأكد من أن الرابط يشير إلى صفحة منتج صحيحة.";
+    } else if (errorMessage.includes("No images")) {
+      userMessage = "لم يتم العثور على صور للمنتج. جرب رابط منتج آخر.";
+    } else if (errorMessage.includes("timed out")) {
+      userMessage = "انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى لاحقاً.";
+    } else if (errorMessage.includes("All scraping providers failed")) {
+      userMessage = "فشلت جميع محاولات الاستيراد. يرجى المحاولة لاحقاً أو جرب رابط منتج آخر.";
+    }
+
+    return data({ error: userMessage, details: errorMessage }, { status: 500 });
   }
 }
 
+interface ActionData {
+  error?: string;
+  details?: string;
+}
+
 export default function Import({ actionData }: Route.ComponentProps) {
+  const typedActionData = actionData as ActionData | undefined;
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
 
@@ -137,11 +173,21 @@ export default function Import({ actionData }: Route.ComponentProps) {
                 />
               </div>
 
-              {actionData?.error && (
+              {typedActionData?.error && (
                 <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
                   <p className="text-red-600 dark:text-red-400 text-sm">
-                    {actionData.error}
+                    {typedActionData.error}
                   </p>
+                  {process.env.NODE_ENV === "development" && typedActionData.details && (
+                    <details className="mt-2">
+                      <summary className="text-xs text-red-500 cursor-pointer">
+                        تفاصيل الخطأ (للمطورين)
+                      </summary>
+                      <pre className="mt-2 text-xs text-red-400 whitespace-pre-wrap overflow-auto max-h-32">
+                        {typedActionData.details}
+                      </pre>
+                    </details>
+                  )}
                 </div>
               )}
 

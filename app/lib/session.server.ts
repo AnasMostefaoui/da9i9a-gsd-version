@@ -26,20 +26,37 @@ export async function destroySession(session: Awaited<ReturnType<typeof getSessi
   return sessionStorage.destroySession(session);
 }
 
+// Dev bypass - set DEV_BYPASS_AUTH=true in .env to skip OAuth
+const DEV_BYPASS_AUTH = process.env.DEV_BYPASS_AUTH === "true";
+const DEV_MERCHANT_ID = "dev-merchant-123";
+
 // Get current merchant ID from session
 export async function getMerchantId(request: Request): Promise<string | null> {
+  if (DEV_BYPASS_AUTH) {
+    return DEV_MERCHANT_ID;
+  }
   const session = await getSession(request);
   return session.get("merchantId") || null;
 }
 
 // Require authentication - redirect to home if not logged in
 export async function requireMerchant(request: Request): Promise<string> {
+  if (DEV_BYPASS_AUTH) {
+    return DEV_MERCHANT_ID;
+  }
   const merchantId = await getMerchantId(request);
   if (!merchantId) {
     throw redirect("/");
   }
   return merchantId;
 }
+
+// Check if dev bypass is enabled
+export function isDevBypass(): boolean {
+  return DEV_BYPASS_AUTH;
+}
+
+export { DEV_MERCHANT_ID };
 
 // Create authenticated session
 export async function createMerchantSession(merchantId: string, redirectTo: string) {
