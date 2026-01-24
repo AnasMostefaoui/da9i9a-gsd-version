@@ -16,8 +16,8 @@ import type {
   ScrapeResult,
 } from "./types";
 import { detectPlatform, DEFAULT_SCRAPING_CONFIG } from "./types";
-import { ApifyProvider } from "./apify";
-import { OxylabsProvider } from "./oxylabs";
+import { ApifyProvider } from "./apify.server";
+import { OxylabsProvider } from "./oxylabs.server";
 
 interface ProviderCredentials {
   apify?: {

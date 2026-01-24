@@ -3,7 +3,7 @@ import { Form, useNavigation, Link } from "react-router";
 import { redirect, data } from "react-router";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
-import { detectPlatform, getScrapingOrchestrator } from "~/services/scraping";
+import { detectPlatform, getScrapingOrchestrator } from "~/services/scraping/index.server";
 
 export function meta({}: Route.MetaArgs) {
   return [

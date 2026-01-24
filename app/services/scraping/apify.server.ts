@@ -44,7 +44,8 @@ interface ApifyProductResult {
   description?: string;
   price?: number | string;
   currency?: string;
-  brand?: string;
+  // Brand can be string or object { slogan: string }
+  brand?: string | { slogan?: string; name?: string };
   images?: string[];
   image?: string;
   mainImage?: string;
@@ -62,6 +63,11 @@ interface ApifyProductResult {
     name?: string;
     options?: string[];
   }>;
+  // Offers can contain price info
+  offers?: {
+    price?: number | string;
+    priceCurrency?: string;
+  };
 }
 
 export class ApifyProvider implements ScraperProvider {
@@ -88,18 +94,15 @@ export class ApifyProvider implements ScraperProvider {
 
     try {
       // Run the configured actor for this platform
-      const run = await this.client.actor(actorId).call(
-        {
-          // Input for product detail URLs
-          productUrls: [{ url }],
-          // Request all available data
-          maxItems: 1,
-        },
-        {
-          // Wait for completion with timeout
-          timeout: this.timeoutMs,
-        }
-      );
+      // call() waits for completion by default
+      const run = await this.client.actor(actorId).call({
+        // Input for product detail URLs (per OpenAPI schema)
+        detailsUrls: [{ url }],
+        // Limit to single product
+        maxProductResults: 1,
+        // Include all available data
+        additionalProperties: true,
+      });
 
       // Fetch results from the default dataset
       const { items } = await this.client
@@ -162,6 +165,14 @@ export class ApifyProvider implements ScraperProvider {
       seller = { name: sellerName };
     }
 
+    // Extract brand (can be string or object)
+    let brand: string | undefined;
+    if (typeof data.brand === "string") {
+      brand = data.brand;
+    } else if (data.brand && typeof data.brand === "object") {
+      brand = data.brand.name || data.brand.slogan;
+    }
+
     return {
       title,
       description,
@@ -170,7 +181,7 @@ export class ApifyProvider implements ScraperProvider {
       images,
       sourceUrl,
       platform,
-      brand: data.brand,
+      brand,
       sku: data.sku || data.productId,
       specifications: data.specifications,
       reviewSummary,
@@ -195,16 +206,30 @@ export class ApifyProvider implements ScraperProvider {
   }
 
   private extractPrice(data: ApifyProductResult): number {
-    if (typeof data.price === "number") {
+    // Try direct price field
+    if (typeof data.price === "number" && data.price > 0) {
       return data.price;
     }
 
     if (typeof data.price === "string") {
-      // Remove currency symbols and parse
       const cleaned = data.price.replace(/[^0-9.,]/g, "").replace(",", ".");
       const parsed = parseFloat(cleaned);
-      if (!isNaN(parsed)) {
+      if (!isNaN(parsed) && parsed > 0) {
         return parsed;
+      }
+    }
+
+    // Try offers.price as fallback
+    if (data.offers?.price) {
+      if (typeof data.offers.price === "number") {
+        return data.offers.price;
+      }
+      if (typeof data.offers.price === "string") {
+        const cleaned = data.offers.price.replace(/[^0-9.,]/g, "").replace(",", ".");
+        const parsed = parseFloat(cleaned);
+        if (!isNaN(parsed)) {
+          return parsed;
+        }
       }
     }
 
