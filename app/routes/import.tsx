@@ -4,6 +4,7 @@ import { redirect, data } from "react-router";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
 import { detectPlatform, getScrapingOrchestrator } from "~/services/scraping/index.server";
+import { getGeminiProvider, isGeminiConfigured } from "~/services/ai";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -75,18 +76,66 @@ export async function action({ request }: Route.ActionArgs) {
 
     console.log(`[Import] Successfully scraped: "${scraped.title}" via ${scraped.provider}`);
 
+    // Prepare product data
+    let titleEn = scraped.title;
+    let descriptionEn = scraped.description || null;
+    let productStatus: "IMPORTED" | "ENHANCED" = "IMPORTED";
+    let aiMetadata: Record<string, unknown> = {};
+
+    // AI Enhancement (if Gemini is configured)
+    if (isGeminiConfigured()) {
+      try {
+        console.log(`[Import] Starting AI enhancement with Gemini...`);
+        const gemini = getGeminiProvider();
+
+        const enhanced = await gemini.enhanceProduct({
+          title: scraped.title,
+          description: scraped.description || "",
+          price: scraped.price,
+          currency: scraped.currency,
+          images: scraped.images,
+          brand: scraped.brand,
+          specifications: scraped.specifications,
+          reviewSummary: scraped.reviewSummary,
+          seller: scraped.seller,
+          platform: scraped.platform,
+          sourceUrl: url,
+        });
+
+        console.log(`[Import] AI enhancement complete: "${enhanced.title.slice(0, 50)}..."`);
+
+        // Use AI-enhanced content
+        titleEn = enhanced.title;
+        descriptionEn = enhanced.description;
+        productStatus = "ENHANCED";
+        aiMetadata = {
+          aiProvider: enhanced.provider,
+          aiGeneratedAt: enhanced.generatedAt.toISOString(),
+          highlights: enhanced.highlights,
+          originalTitle: scraped.title,
+          originalDescription: scraped.description,
+        };
+      } catch (aiError) {
+        // AI enhancement failed, but we still have scraped data
+        console.error(`[Import] AI enhancement failed:`, aiError);
+        console.log(`[Import] Continuing with scraped data only`);
+      }
+    } else {
+      console.log(`[Import] Gemini not configured, skipping AI enhancement`);
+    }
+
     // Save to database
     const product = await db.product.create({
       data: {
         merchantId,
         sourceUrl: url,
         platform: platform.toUpperCase() as "ALIEXPRESS" | "AMAZON",
-        titleEn: scraped.title,
-        descriptionEn: scraped.description || null,
+        titleEn,
+        descriptionEn,
         price: scraped.price,
         currency: scraped.currency,
         images: scraped.images,
-        status: "IMPORTED",
+        status: productStatus,
         // Store additional metadata as JSON if available
         metadata: JSON.parse(JSON.stringify({
           scrapedAt: scraped.scrapedAt.toISOString(),
@@ -95,6 +144,7 @@ export async function action({ request }: Route.ActionArgs) {
           sku: scraped.sku,
           reviewSummary: scraped.reviewSummary,
           seller: scraped.seller,
+          ...aiMetadata,
         })),
       },
     });

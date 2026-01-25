@@ -4,7 +4,7 @@ import { redirect, data } from "react-router";
 import { useState } from "react";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
-import { GeminiProvider } from "~/services/ai";
+import { getGeminiProvider, isGeminiConfigured } from "~/services/ai";
 import { SallaClient } from "~/services/salla";
 
 export function meta({}: Route.MetaArgs) {
@@ -61,9 +61,7 @@ export async function action({ request, params }: Route.ActionArgs) {
 
   switch (intent) {
     case "enhance": {
-      const geminiKey = process.env.GEMINI_API_KEY;
-
-      if (!geminiKey) {
+      if (!isGeminiConfigured()) {
         // Mock enhancement for dev without API key
         await db.product.update({
           where: { id },
@@ -79,21 +77,37 @@ export async function action({ request, params }: Route.ActionArgs) {
       }
 
       try {
-        const ai = new GeminiProvider(geminiKey);
-        const enhanced = await ai.enhanceProductText({
+        const gemini = getGeminiProvider();
+
+        // Extract metadata for rich signals
+        const metadata = (product.metadata as Record<string, unknown>) || {};
+
+        const enhanced = await gemini.enhanceProduct({
           title: product.titleEn || product.titleAr || "",
           description: product.descriptionEn || product.descriptionAr || "",
-          targetLanguages: ["ar", "en"],
+          price: Number(product.price),
+          currency: product.currency,
+          images: product.images,
+          brand: metadata.brand as string | undefined,
+          specifications: metadata.specifications as Record<string, string> | undefined,
+          reviewSummary: metadata.reviewSummary as { rating: number; count: number } | undefined,
+          seller: metadata.seller as { name: string; rating?: number } | undefined,
+          platform: product.platform.toLowerCase() as "aliexpress" | "amazon",
+          sourceUrl: product.sourceUrl,
         });
 
         await db.product.update({
           where: { id },
           data: {
-            titleAr: enhanced.title.ar,
-            titleEn: enhanced.title.en,
-            descriptionAr: enhanced.description.ar,
-            descriptionEn: enhanced.description.en,
+            titleEn: enhanced.title,
+            descriptionEn: enhanced.description,
             status: "ENHANCED",
+            metadata: {
+              ...(product.metadata as object || {}),
+              aiProvider: enhanced.provider,
+              aiGeneratedAt: enhanced.generatedAt.toISOString(),
+              highlights: enhanced.highlights,
+            },
           },
         });
 
@@ -141,14 +155,31 @@ export async function action({ request, params }: Route.ActionArgs) {
           img.startsWith("http") ? img : `${baseUrl}${img}`
         );
 
+        // Extract metadata for richer product data
+        const metadata = (product.metadata as Record<string, unknown>) || {};
+        const highlights = metadata.highlights as string[] | undefined;
+        const sku = metadata.sku as string | undefined;
+
+        // Build rich description with highlights
+        let fullDescription = product.descriptionAr || product.descriptionEn || "";
+        if (highlights && highlights.length > 0) {
+          fullDescription += "\n\n" + highlights.map(h => `• ${h}`).join("\n");
+        }
+
         // Create product in Salla with image URLs (Salla fetches them)
         const sallaProduct = await salla.createProduct({
           name: product.titleAr || product.titleEn || "منتج جديد",
-          description: product.descriptionAr || product.descriptionEn || "",
+          description: fullDescription,
           price: Number(product.price),
           quantity: 100,
           status: "sale",
           product_type: "product",
+          sku: sku,
+          require_shipping: true,
+          weight: 0.5, // Default weight for dropshipping products
+          weight_type: "kg",
+          metadata_title: product.titleEn?.slice(0, 70) || undefined,
+          metadata_description: highlights ? highlights.slice(0, 2).join(". ").slice(0, 160) : undefined,
           images: absoluteImageUrls.map((url, i) => ({
             original: url,
             sort: i + 1,

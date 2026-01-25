@@ -1,2 +1,2 @@
 export * from "./types";
-export { GeminiProvider } from "./gemini";
+export { GeminiProvider, getGeminiProvider, isGeminiConfigured } from "./gemini.server";

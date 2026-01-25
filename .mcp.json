@@ -1,0 +1,12 @@
+{
+  "mcpServers": {
+    "salla-docs": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "apidog-mcp-server@latest",
+        "--site-id=451700"
+      ]
+    }
+  }
+}
