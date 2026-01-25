@@ -13,4 +13,7 @@ export default [
   route("dashboard", "routes/dashboard.tsx"),
   route("import", "routes/import.tsx"),
   route("products/:id", "routes/products.$id.tsx"),
+
+  // Widget endpoint (loaded by Salla stores via App Snippet)
+  route("widget", "routes/widget.ts"),
 ] satisfies RouteConfig;
