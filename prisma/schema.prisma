@@ -71,6 +71,10 @@ model Product {
   // Additional metadata (scraping info, brand, SKU, etc.)
   metadata        Json?     @default("{}")
 
+  // Landing page content (AI-generated JSON for template rendering)
+  landingPageContent  Json?     @map("landing_page_content")
+  contentLang         String    @default("ar") @map("content_lang")
+
   createdAt       DateTime  @default(now()) @map("created_at")
   updatedAt       DateTime  @updatedAt @map("updated_at")
 

@@ -1,4 +1,5 @@
 import type { Route } from "./+types/import";
+import { useState } from "react";
 import { Form, useNavigation, Link } from "react-router";
 import { redirect, data } from "react-router";
 import { db } from "~/lib/db.server";
@@ -22,6 +23,7 @@ export async function action({ request }: Route.ActionArgs) {
 
   const formData = await request.formData();
   const url = formData.get("url") as string;
+  const contentLang = (formData.get("contentLang") as "ar" | "en") || "ar";
   const forceRefresh = formData.get("forceRefresh") === "true";
 
   if (!url) {
@@ -59,6 +61,7 @@ export async function action({ request }: Route.ActionArgs) {
           "/mock-images/2151232253.jpg",
         ],
         status: "IMPORTED",
+        contentLang,
       },
     });
 
@@ -136,6 +139,7 @@ export async function action({ request }: Route.ActionArgs) {
         currency: scraped.currency,
         images: scraped.images,
         status: productStatus,
+        contentLang,
         // Store additional metadata as JSON if available
         metadata: JSON.parse(JSON.stringify({
           scrapedAt: scraped.scrapedAt.toISOString(),
@@ -182,6 +186,7 @@ export default function Import({ actionData }: Route.ComponentProps) {
   const typedActionData = actionData as ActionData | undefined;
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const [contentLang, setContentLang] = useState<"ar" | "en">("ar");
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -209,6 +214,41 @@ export default function Import({ actionData }: Route.ComponentProps) {
             </p>
 
             <Form method="post" className="space-y-4">
+              {/* Language Selector */}
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                  لغة المحتوى المُولَّد
+                </label>
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setContentLang("ar")}
+                    className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      contentLang === "ar"
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-blue-400"
+                    }`}
+                  >
+                    🇸🇦 العربية
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setContentLang("en")}
+                    className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
+                      contentLang === "en"
+                        ? "bg-blue-600 text-white border-blue-600"
+                        : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-blue-400"
+                    }`}
+                  >
+                    🇺🇸 English
+                  </button>
+                </div>
+                <input type="hidden" name="contentLang" value={contentLang} />
+                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                  سيتم إنشاء العنوان والوصف وصفحة الهبوط بهذه اللغة
+                </p>
+              </div>
+
               <div>
                 <label htmlFor="url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                   رابط المنتج

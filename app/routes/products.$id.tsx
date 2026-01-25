@@ -4,8 +4,10 @@ import { redirect, data } from "react-router";
 import { useState } from "react";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
-import { getGeminiProvider, isGeminiConfigured } from "~/services/ai";
+import { getGeminiProvider, isGeminiConfigured, generateLandingPageContent } from "~/services/ai";
+import type { LandingPageContent } from "~/services/ai/types";
 import { SallaClient } from "~/services/salla";
+import { LandingPagePreview } from "~/components/landing-page";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -40,6 +42,9 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     sourceUrl: product.sourceUrl,
     platform: product.platform,
     sallaProductId: product.sallaProductId,
+    landingPageContent: product.landingPageContent as LandingPageContent | null,
+    contentLang: product.contentLang as "ar" | "en",
+    metadata: product.metadata as Record<string, unknown> | null,
   };
 }
 
@@ -229,6 +234,42 @@ export async function action({ request, params }: Route.ActionArgs) {
       return data({ success: true, message: "تم حفظ التغييرات", error: null });
     }
 
+    case "generate-landing-page": {
+      try {
+        const metadata = (product.metadata as Record<string, unknown>) || {};
+
+        const landingContent = await generateLandingPageContent(
+          {
+            titleAr: product.titleAr,
+            titleEn: product.titleEn,
+            descriptionAr: product.descriptionAr,
+            descriptionEn: product.descriptionEn,
+            price: Number(product.price),
+            currency: product.currency,
+            images: product.images,
+            metadata: {
+              brand: metadata.brand as string | undefined,
+              reviewSummary: metadata.reviewSummary as { rating: number; count: number } | undefined,
+              highlights: metadata.highlights as string[] | undefined,
+            },
+          },
+          product.contentLang as "ar" | "en"
+        );
+
+        await db.product.update({
+          where: { id },
+          data: {
+            landingPageContent: landingContent as unknown as object,
+          },
+        });
+
+        return data({ success: true, message: "تم إنشاء صفحة الهبوط بنجاح", error: null });
+      } catch (error) {
+        console.error("Landing page generation error:", error);
+        return data({ success: false, message: null, error: "فشل في إنشاء صفحة الهبوط" }, { status: 500 });
+      }
+    }
+
     default:
       return data({ success: false, message: null, error: "إجراء غير معروف" }, { status: 400 });
   }
@@ -247,6 +288,7 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
   const product = loaderData;
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
+  const currentIntent = navigation.formData?.get("intent") as string | undefined;
   const [selectedImages, setSelectedImages] = useState<number[]>(product.selectedImages);
 
   const toggleImage = (index: number) => {
@@ -258,6 +300,11 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
   };
 
   const status = STATUS_CONFIG[product.status] || STATUS_CONFIG.IMPORTED;
+
+  // Get selected images for preview
+  const previewImages = selectedImages.length > 0
+    ? selectedImages.map(i => product.images[i]).filter(Boolean)
+    : product.images.slice(0, 5);
 
   return (
     <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
@@ -272,68 +319,73 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
               تحرير المنتج
             </h1>
           </div>
-          <span className={`px-3 py-1 text-sm rounded-full ${status.color}`}>
-            {status.label}
-          </span>
+          <div className="flex items-center gap-3">
+            <span className="text-xs text-gray-500 dark:text-gray-400">
+              {product.contentLang === "ar" ? "🇸🇦 العربية" : "🇺🇸 English"}
+            </span>
+            <span className={`px-3 py-1 text-sm rounded-full ${status.color}`}>
+              {status.label}
+            </span>
+          </div>
         </div>
       </header>
 
-      {/* Content */}
-      <div className="container mx-auto px-4 py-8">
-        {(actionData?.message || actionData?.error) && (
-          <div className={`mb-6 p-4 rounded-lg border ${
-            actionData.error
-              ? "bg-red-50 border-red-200 text-red-600"
-              : "bg-green-50 border-green-200 text-green-600"
-          }`}>
-            {actionData.message || actionData.error}
-          </div>
-        )}
-
-        <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Main Content */}
-          <div className="lg:col-span-2 space-y-6">
-            {/* Images Section */}
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                صور المنتج
-              </h2>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                اختر الصور التي تريد استخدامها في متجرك
-              </p>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
-                {product.images.map((image, index) => (
-                  <button
-                    key={index}
-                    type="button"
-                    onClick={() => toggleImage(index)}
-                    className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
-                      selectedImages.includes(index)
-                        ? "border-blue-500 ring-2 ring-blue-500/30"
-                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
-                    }`}
-                  >
-                    <img src={image} alt={`صورة ${index + 1}`} className="w-full h-full object-cover" />
-                    {selectedImages.includes(index) && (
-                      <div className="absolute top-2 right-2 w-6 h-6 bg-blue-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm">✓</span>
-                      </div>
-                    )}
-                  </button>
-                ))}
-              </div>
+      {/* Content - Side by Side Layout */}
+      <div className="flex h-[calc(100vh-65px)]">
+        {/* Left Panel - Form (55%) */}
+        <div className="w-[55%] overflow-y-auto p-6 border-r border-gray-200 dark:border-gray-800">
+          {(actionData?.message || actionData?.error) && (
+            <div className={`mb-6 p-4 rounded-lg border ${
+              actionData.error
+                ? "bg-red-50 border-red-200 text-red-600"
+                : "bg-green-50 border-green-200 text-green-600"
+            }`}>
+              {actionData.message || actionData.error}
             </div>
+          )}
 
-            {/* Product Details Form */}
-            <Form method="post" className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-              <input type="hidden" name="intent" value="update" />
-              <input type="hidden" name="selectedImages" value={JSON.stringify(selectedImages)} />
+          {/* Images Section */}
+          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              صور المنتج
+            </h2>
+            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+              اختر الصور التي تريد استخدامها في متجرك
+            </p>
+            <div className="grid grid-cols-4 gap-3">
+              {product.images.map((image, index) => (
+                <button
+                  key={index}
+                  type="button"
+                  onClick={() => toggleImage(index)}
+                  className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
+                    selectedImages.includes(index)
+                      ? "border-blue-500 ring-2 ring-blue-500/30"
+                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                  }`}
+                >
+                  <img src={image} alt={`صورة ${index + 1}`} className="w-full h-full object-cover" />
+                  {selectedImages.includes(index) && (
+                    <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-xs">✓</span>
+                    </div>
+                  )}
+                </button>
+              ))}
+            </div>
+          </div>
 
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-                تفاصيل المنتج
-              </h2>
+          {/* Product Details Form */}
+          <Form method="post" className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6 mb-6">
+            <input type="hidden" name="intent" value="update" />
+            <input type="hidden" name="selectedImages" value={JSON.stringify(selectedImages)} />
 
-              <div className="space-y-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+              تفاصيل المنتج
+            </h2>
+
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     العنوان (عربي)
@@ -342,10 +394,9 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
                     type="text"
                     name="titleAr"
                     defaultValue={product.titleAr || ""}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     العنوان (إنجليزي)
@@ -355,135 +406,178 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
                     name="titleEn"
                     defaultValue={product.titleEn || ""}
                     dir="ltr"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
+              </div>
 
+              <div className="grid grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     الوصف (عربي)
                   </label>
                   <textarea
                     name="descriptionAr"
-                    rows={4}
+                    rows={3}
                     defaultValue={product.descriptionAr || ""}
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
-
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
                     الوصف (إنجليزي)
                   </label>
                   <textarea
                     name="descriptionEn"
-                    rows={4}
+                    rows={3}
                     defaultValue={product.descriptionEn || ""}
                     dir="ltr"
-                    className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
                   />
                 </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      السعر
-                    </label>
-                    <input
-                      type="number"
-                      name="price"
-                      step="0.01"
-                      defaultValue={product.price}
-                      dir="ltr"
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
-                    />
-                  </div>
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                      العملة
-                    </label>
-                    <input
-                      type="text"
-                      value={product.currency}
-                      disabled
-                      className="w-full px-4 py-2 border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500"
-                    />
-                  </div>
-                </div>
-
-                <button
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="px-4 py-2 text-sm font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
-                >
-                  حفظ التغييرات
-                </button>
               </div>
-            </Form>
-          </div>
 
-          {/* Sidebar - Actions */}
-          <div className="space-y-6">
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    السعر
+                  </label>
+                  <input
+                    type="number"
+                    name="price"
+                    step="0.01"
+                    defaultValue={product.price}
+                    dir="ltr"
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                    العملة
+                  </label>
+                  <input
+                    type="text"
+                    value={product.currency}
+                    disabled
+                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500"
+                  />
+                </div>
+                <div className="flex items-end">
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className="w-full px-4 py-2 text-sm font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                  >
+                    حفظ التغييرات
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Form>
+
+          {/* Actions Grid */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
             {/* Enhance Card */}
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-4">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                 تحسين بالذكاء الاصطناعي
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                تحسين العنوان والوصف تلقائياً بالعربية والإنجليزية
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                تحسين العنوان والوصف تلقائياً
               </p>
               <Form method="post">
                 <input type="hidden" name="intent" value="enhance" />
                 <button
                   type="submit"
                   disabled={isSubmitting || product.status === "PUSHED"}
-                  className="w-full px-4 py-3 text-white bg-gradient-to-l from-purple-600 to-blue-600 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-2 text-sm text-white bg-gradient-to-l from-purple-600 to-blue-600 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting ? "جاري التحسين..." : "✨ تحسين المنتج"}
+                  {isSubmitting && currentIntent === "enhance" ? "جاري التحسين..." : "✨ تحسين"}
                 </button>
               </Form>
             </div>
 
             {/* Push to Salla Card */}
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-              <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
+            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-4">
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
                 نشر في سلة
               </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                إنشاء المنتج في متجرك على سلة
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                إنشاء المنتج في متجرك
               </p>
               <Form method="post">
                 <input type="hidden" name="intent" value="push" />
                 <button
                   type="submit"
                   disabled={isSubmitting || product.status === "PUSHED"}
-                  className="w-full px-4 py-3 text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-2 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {product.status === "PUSHED" ? "✓ تم النشر" : isSubmitting ? "جاري النشر..." : "🚀 نشر في سلة"}
+                  {product.status === "PUSHED" ? "✓ تم النشر" : isSubmitting && currentIntent === "push" ? "جاري النشر..." : "🚀 نشر"}
                 </button>
               </Form>
               {product.sallaProductId && (
                 <p className="mt-2 text-xs text-gray-500">
-                  معرف المنتج في سلة: {product.sallaProductId}
+                  معرف سلة: {product.sallaProductId}
                 </p>
               )}
             </div>
+          </div>
 
-            {/* Source Info */}
-            <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
-              <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">المصدر:</p>
-              <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
-                {product.platform === "ALIEXPRESS" ? "AliExpress" : "Amazon"}
-              </p>
-              <a
-                href={product.sourceUrl}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-xs text-blue-600 dark:text-blue-400 hover:underline break-all"
-                dir="ltr"
+          {/* Source Info */}
+          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
+            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">المصدر:</p>
+            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+              {product.platform === "ALIEXPRESS" ? "AliExpress" : "Amazon"}
+            </p>
+            <a
+              href={product.sourceUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-xs text-blue-600 dark:text-blue-400 hover:underline break-all"
+              dir="ltr"
+            >
+              {product.sourceUrl}
+            </a>
+          </div>
+        </div>
+
+        {/* Right Panel - Mobile Preview (45%) */}
+        <div className="w-[45%] bg-gray-100 dark:bg-gray-900 p-6 flex flex-col">
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+              معاينة صفحة الهبوط
+            </h2>
+            <Form method="post">
+              <input type="hidden" name="intent" value="generate-landing-page" />
+              <button
+                type="submit"
+                disabled={isSubmitting}
+                className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50"
               >
-                {product.sourceUrl}
-              </a>
+                {isSubmitting && currentIntent === "generate-landing-page"
+                  ? "جاري الإنشاء..."
+                  : product.landingPageContent
+                    ? "🔄 إعادة الإنشاء"
+                    : "✨ إنشاء صفحة هبوط"}
+              </button>
+            </Form>
+          </div>
+
+          {/* Mobile Frame */}
+          <div className="flex-1 flex items-start justify-center overflow-hidden">
+            <div className="w-[375px] h-[667px] bg-white rounded-[40px] shadow-xl border-8 border-gray-800 overflow-hidden relative">
+              {/* Phone Notch */}
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-gray-800 rounded-b-2xl z-10" />
+
+              {/* Screen Content */}
+              <div className="h-full overflow-hidden pt-6">
+                <LandingPagePreview
+                  content={product.landingPageContent}
+                  productImages={previewImages}
+                  price={product.price}
+                  currency={product.currency}
+                />
+              </div>
             </div>
           </div>
         </div>
