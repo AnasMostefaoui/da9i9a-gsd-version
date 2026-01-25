@@ -7,6 +7,7 @@
 
 import type { LoaderFunctionArgs } from "react-router";
 import { db } from "~/lib/db.server";
+import { getPalette } from "~/lib/color-palettes";
 
 export async function loader({ params }: LoaderFunctionArgs) {
   const sallaProductId = params.productId;
@@ -23,6 +24,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
       sallaProductId: true,
       landingPageContent: true,
       contentLang: true,
+      colorPalette: true,
       titleAr: true,
       titleEn: true,
       price: true,
@@ -45,6 +47,9 @@ export async function loader({ params }: LoaderFunctionArgs) {
     ? product.selectedImages.map(i => product.images[i]).filter(Boolean)
     : product.images.slice(0, 5);
 
+  // Get the color palette
+  const palette = getPalette(product.colorPalette);
+
   return Response.json({
     success: true,
     data: {
@@ -55,6 +60,7 @@ export async function loader({ params }: LoaderFunctionArgs) {
       currency: product.currency,
       images,
       content: product.landingPageContent,
+      palette,
     },
   }, {
     headers: {

@@ -228,3 +228,119 @@ export function getGeminiProvider(): GeminiProvider {
 export function isGeminiConfigured(): boolean {
   return !!process.env.GEMINI_API_KEY;
 }
+
+/**
+ * Translate content to KSA-style Arabic
+ * Uses Gulf Arabic conventions with Modern Standard Arabic base
+ */
+export async function translateToArabic(content: {
+  title: string;
+  description: string;
+  highlights?: string[];
+}): Promise<{
+  titleAr: string;
+  descriptionAr: string;
+  highlightsAr: string[];
+}> {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error("GEMINI_API_KEY is not configured");
+  }
+
+  const prompt = `You are an expert Arabic copywriter specializing in Saudi Arabian (KSA) e-commerce content.
+
+## Your Task
+Transform the following English product content into compelling Arabic marketing copy for the Saudi market. This is NOT a literal translation - adapt the content for Saudi consumers.
+
+## KSA Arabic Style Guidelines
+
+### Language Style:
+- Use Modern Standard Arabic (الفصحى) with a Gulf Arabic touch
+- Keep it professional yet warm - Saudis appreciate quality and trust
+- Be confident and direct - avoid overly flowery language
+
+### Vocabulary Preferences (use these terms):
+- "توصيل سريع" for fast delivery
+- "شحن مجاني" for free shipping
+- "ضمان" for warranty/guarantee
+- "جودة عالية" or "جودة ممتازة" for high quality
+- "أصلي 100%" for 100% authentic
+- "متوفر الآن" for available now
+- "أفضل سعر" for best price
+- "خدمة عملاء" for customer service
+- "الدفع عند الاستلام" for cash on delivery
+- "منتج مميز" for featured/special product
+
+### Cultural Considerations:
+- Reference fast delivery within KSA (1-3 days)
+- Mention secure payment and trusted shopping
+- Quality assurance and authenticity are very important
+- Warranty and return policies build trust
+
+### Format Rules:
+- Title: Maximum 70 Arabic characters, benefit-focused
+- Description: 2-3 paragraphs, compelling marketing copy
+- Highlights: 3-4 bullets, each under 40 Arabic characters
+
+## English Content to Transform
+
+**Title:**
+${content.title}
+
+**Description:**
+${content.description}
+
+**Highlights:**
+${content.highlights?.map((h, i) => `${i + 1}. ${h}`).join('\n') || 'None provided'}
+
+## Output Format
+Return ONLY valid JSON:
+
+{
+  "titleAr": "العنوان العربي المقنع",
+  "descriptionAr": "وصف تسويقي جذاب بالعربية من 2-3 فقرات...",
+  "highlightsAr": ["ميزة 1", "ميزة 2", "ميزة 3"]
+}
+
+CRITICAL: Do NOT transliterate. Transform the message for Saudi buyers. Make it sound native, not translated.`;
+
+  console.log(`[Gemini] Translating to KSA Arabic: "${content.title.slice(0, 30)}..."`);
+
+  const response = await fetch(
+    `${GEMINI_API_BASE}/${GEMINI_MODEL}:generateContent?key=${apiKey}`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }],
+        generationConfig: {
+          responseMimeType: "application/json",
+          temperature: 0.6,
+          maxOutputTokens: 2048,
+        },
+      }),
+    }
+  );
+
+  if (!response.ok) {
+    const error = await response.text();
+    console.error(`[Gemini] Translation API error: ${error}`);
+    throw new Error(`Gemini API error: ${response.status}`);
+  }
+
+  const result = await response.json();
+  const text = result.candidates?.[0]?.content?.parts?.[0]?.text;
+
+  if (!text) {
+    throw new Error("No translation response from Gemini");
+  }
+
+  const parsed = JSON.parse(text);
+  console.log(`[Gemini] Successfully translated to KSA Arabic`);
+
+  return {
+    titleAr: parsed.titleAr,
+    descriptionAr: parsed.descriptionAr,
+    highlightsAr: parsed.highlightsAr || [],
+  };
+}

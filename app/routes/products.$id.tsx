@@ -1,5 +1,5 @@
 import type { Route } from "./+types/products.$id";
-import { Link, Form, useNavigation } from "react-router";
+import { Link, Form, useNavigation, useFetcher } from "react-router";
 import { redirect, data } from "react-router";
 import { useState } from "react";
 import { db } from "~/lib/db.server";
@@ -8,6 +8,7 @@ import { getGeminiProvider, isGeminiConfigured, generateLandingPageContent } fro
 import type { LandingPageContent } from "~/services/ai/types";
 import { SallaClient } from "~/services/salla";
 import { LandingPagePreview } from "~/components/landing-page";
+import { COLOR_PALETTES, PALETTE_IDS, getPalette } from "~/lib/color-palettes";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -44,6 +45,7 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     sallaProductId: product.sallaProductId,
     landingPageContent: product.landingPageContent as LandingPageContent | null,
     contentLang: product.contentLang as "ar" | "en",
+    colorPalette: product.colorPalette,
     metadata: product.metadata as Record<string, unknown> | null,
   };
 }
@@ -270,6 +272,18 @@ export async function action({ request, params }: Route.ActionArgs) {
       }
     }
 
+    case "update-palette": {
+      const palette = formData.get("palette") as string;
+      if (palette && PALETTE_IDS.includes(palette)) {
+        await db.product.update({
+          where: { id },
+          data: { colorPalette: palette },
+        });
+        return data({ success: true, message: null, error: null });
+      }
+      return data({ success: false, message: null, error: "لون غير صالح" }, { status: 400 });
+    }
+
     default:
       return data({ success: false, message: null, error: "إجراء غير معروف" }, { status: 400 });
   }
@@ -287,9 +301,12 @@ const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
 export default function ProductDetail({ loaderData, actionData }: Route.ComponentProps) {
   const product = loaderData;
   const navigation = useNavigation();
+  const paletteFetcher = useFetcher();
   const isSubmitting = navigation.state === "submitting";
   const currentIntent = navigation.formData?.get("intent") as string | undefined;
   const [selectedImages, setSelectedImages] = useState<number[]>(product.selectedImages);
+  const [selectedPalette, setSelectedPalette] = useState(product.colorPalette);
+  const currentPalette = getPalette(selectedPalette);
 
   const toggleImage = (index: number) => {
     setSelectedImages(prev =>
@@ -563,6 +580,46 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
             </Form>
           </div>
 
+          {/* Color Palette Selector */}
+          <div className="mb-4">
+            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+              لوحة الألوان
+            </label>
+            <div className="flex flex-wrap gap-2">
+              {PALETTE_IDS.map((paletteId) => {
+                const palette = COLOR_PALETTES[paletteId];
+                const isSelected = selectedPalette === paletteId;
+                return (
+                  <button
+                    key={paletteId}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPalette(paletteId);
+                      paletteFetcher.submit(
+                        { intent: "update-palette", palette: paletteId },
+                        { method: "post" }
+                      );
+                    }}
+                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
+                      isSelected
+                        ? "border-gray-800 dark:border-white ring-2 ring-gray-400/30"
+                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                    }`}
+                    title={palette.name}
+                  >
+                    <div
+                      className="w-5 h-5 rounded-full"
+                      style={{ background: `linear-gradient(135deg, ${palette.primary} 0%, ${palette.primaryHover} 100%)` }}
+                    />
+                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                      {palette.nameAr}
+                    </span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Mobile Frame */}
           <div className="flex-1 flex items-start justify-center overflow-hidden">
             <div className="w-[375px] h-[667px] bg-white rounded-[40px] shadow-xl border-8 border-gray-800 overflow-hidden relative">
@@ -576,6 +633,7 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
                   productImages={previewImages}
                   price={product.price}
                   currency={product.currency}
+                  palette={currentPalette}
                 />
               </div>
             </div>

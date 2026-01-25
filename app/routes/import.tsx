@@ -5,7 +5,7 @@ import { redirect, data } from "react-router";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
 import { detectPlatform, getScrapingOrchestrator } from "~/services/scraping/index.server";
-import { getGeminiProvider, isGeminiConfigured } from "~/services/ai";
+import { getGeminiProvider, isGeminiConfigured, translateToArabic } from "~/services/ai";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -82,6 +82,8 @@ export async function action({ request }: Route.ActionArgs) {
     // Prepare product data
     let titleEn = scraped.title;
     let descriptionEn = scraped.description || null;
+    let titleAr: string | null = null;
+    let descriptionAr: string | null = null;
     let productStatus: "IMPORTED" | "ENHANCED" = "IMPORTED";
     let aiMetadata: Record<string, unknown> = {};
 
@@ -123,6 +125,27 @@ export async function action({ request }: Route.ActionArgs) {
         console.error(`[Import] AI enhancement failed:`, aiError);
         console.log(`[Import] Continuing with scraped data only`);
       }
+
+      // Translate to KSA-style Arabic if Arabic is selected
+      if (contentLang === "ar" && titleEn) {
+        try {
+          console.log(`[Import] Translating to KSA-style Arabic...`);
+          const arabicContent = await translateToArabic({
+            title: titleEn,
+            description: descriptionEn || "",
+            highlights: aiMetadata.highlights as string[] | undefined,
+          });
+
+          titleAr = arabicContent.titleAr;
+          descriptionAr = arabicContent.descriptionAr;
+          aiMetadata.highlightsAr = arabicContent.highlightsAr;
+
+          console.log(`[Import] Arabic translation complete: "${titleAr?.slice(0, 40)}..."`);
+        } catch (translateError) {
+          console.error(`[Import] Arabic translation failed:`, translateError);
+          // Continue without Arabic translation
+        }
+      }
     } else {
       console.log(`[Import] Gemini not configured, skipping AI enhancement`);
     }
@@ -134,7 +157,9 @@ export async function action({ request }: Route.ActionArgs) {
         sourceUrl: url,
         platform: platform.toUpperCase() as "ALIEXPRESS" | "AMAZON",
         titleEn,
+        titleAr,
         descriptionEn,
+        descriptionAr,
         price: scraped.price,
         currency: scraped.currency,
         images: scraped.images,

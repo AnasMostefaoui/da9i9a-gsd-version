@@ -28,13 +28,25 @@ export async function loader({ request }: LoaderFunctionArgs) {
   const DA9I9A_API = '${apiOrigin}';
   const WIDGET_VERSION = '1.0.0';
 
-  // Styles for the landing page sections
+  // Styles for the landing page sections (using CSS custom properties for colors)
   const STYLES = \`
     .da9i9a-landing {
       font-family: system-ui, -apple-system, sans-serif;
       direction: rtl;
       max-width: 100%;
       margin: 20px 0;
+      /* Default color palette (overridden by inline styles) */
+      --da-primary: #f97316;
+      --da-primary-hover: #ea580c;
+      --da-primary-light: #fed7aa;
+      --da-accent: #c2410c;
+      --da-accent-light: #ffedd5;
+      --da-hero-bg-from: #fff7ed;
+      --da-hero-bg-to: #ffffff;
+      --da-cta-bg-from: #f97316;
+      --da-cta-bg-to: #ea580c;
+      --da-text-on-primary: #ffffff;
+      --da-stats-color: #ea580c;
     }
     .da9i9a-landing.lang-en {
       direction: ltr;
@@ -43,7 +55,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       padding: 24px 16px;
     }
     .da9i9a-hero {
-      background: linear-gradient(135deg, #fff7ed 0%, #ffffff 100%);
+      background: linear-gradient(135deg, var(--da-hero-bg-from) 0%, var(--da-hero-bg-to) 100%);
       text-align: center;
     }
     .da9i9a-badges {
@@ -54,8 +66,8 @@ export async function loader({ request }: LoaderFunctionArgs) {
       margin-bottom: 16px;
     }
     .da9i9a-badge {
-      background: #fed7aa;
-      color: #c2410c;
+      background: var(--da-primary-light);
+      color: var(--da-accent);
       padding: 4px 12px;
       border-radius: 20px;
       font-size: 12px;
@@ -110,7 +122,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     .da9i9a-highlight-icon {
       width: 48px;
       height: 48px;
-      background: #fed7aa;
+      background: var(--da-primary-light);
       border-radius: 12px;
       display: flex;
       align-items: center;
@@ -130,7 +142,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       margin: 0;
     }
     .da9i9a-cta {
-      background: linear-gradient(135deg, #f97316 0%, #ea580c 100%);
+      background: linear-gradient(135deg, var(--da-cta-bg-from) 0%, var(--da-cta-bg-to) 100%);
       text-align: center;
       border-radius: 16px;
       margin: 16px;
@@ -139,17 +151,18 @@ export async function loader({ request }: LoaderFunctionArgs) {
     .da9i9a-cta h3 {
       font-size: 20px;
       font-weight: 700;
-      color: white;
+      color: var(--da-text-on-primary);
       margin: 0 0 8px 0;
     }
     .da9i9a-cta p {
       font-size: 14px;
-      color: rgba(255,255,255,0.9);
+      color: var(--da-text-on-primary);
+      opacity: 0.9;
       margin: 0 0 16px 0;
     }
     .da9i9a-cta-btn {
       background: white;
-      color: #ea580c;
+      color: var(--da-primary);
       border: none;
       padding: 12px 32px;
       border-radius: 50px;
@@ -183,7 +196,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
     .da9i9a-stat-value {
       font-size: 24px;
       font-weight: 700;
-      color: #ea580c;
+      color: var(--da-stats-color);
     }
     .da9i9a-stat-label {
       font-size: 12px;
@@ -198,7 +211,7 @@ export async function loader({ request }: LoaderFunctionArgs) {
       gap: 16px;
     }
     .da9i9a-benefit {
-      background: #f9fafb;
+      background: var(--da-accent-light);
       padding: 16px;
       border-radius: 12px;
       text-align: center;
@@ -375,8 +388,24 @@ export async function loader({ request }: LoaderFunctionArgs) {
   function renderLandingPage(data) {
     const content = data.content;
     const isArabic = data.lang === 'ar';
+    const palette = data.palette;
 
     const container = createElement('div', 'da9i9a-landing' + (isArabic ? '' : ' lang-en'));
+
+    // Apply palette colors as CSS custom properties
+    if (palette) {
+      container.style.setProperty('--da-primary', palette.primary);
+      container.style.setProperty('--da-primary-hover', palette.primaryHover);
+      container.style.setProperty('--da-primary-light', palette.primaryLight);
+      container.style.setProperty('--da-accent', palette.accent);
+      container.style.setProperty('--da-accent-light', palette.accentLight);
+      container.style.setProperty('--da-hero-bg-from', palette.heroBgFrom);
+      container.style.setProperty('--da-hero-bg-to', palette.heroBgTo);
+      container.style.setProperty('--da-cta-bg-from', palette.ctaBgFrom);
+      container.style.setProperty('--da-cta-bg-to', palette.ctaBgTo);
+      container.style.setProperty('--da-text-on-primary', palette.textOnPrimary);
+      container.style.setProperty('--da-stats-color', palette.statsColor);
+    }
 
     // Hero Section
     if (content.hero) {
@@ -559,35 +588,54 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
     const landingPage = renderLandingPage(data);
 
-    // Find insertion point (after product description or before footer)
-    const insertPoints = [
-      '.product-description',
-      '.product-details',
-      '.product-info',
-      '[data-product-description]',
-      'main',
-      'article'
-    ];
+    // Find insertion point - insert at the END of product content, after any sliders
+    // Priority: after product sliders > before footer > end of main content
 
     let inserted = false;
-    for (const selector of insertPoints) {
-      const el = document.querySelector(selector);
-      if (el) {
-        el.parentNode.insertBefore(landingPage, el.nextSibling);
-        inserted = true;
-        console.log('[DA9I9A] Landing page inserted after:', selector);
-        break;
-      }
+
+    // First, try to insert after Salla's product slider (related products section)
+    const sallaSlider = document.querySelector('salla-products-slider, .products-slider, [data-products-slider]');
+    if (sallaSlider) {
+      sallaSlider.parentNode.insertBefore(landingPage, sallaSlider.nextSibling);
+      inserted = true;
+      console.log('[DA9I9A] Landing page inserted after products slider');
     }
 
+    // If no slider found, insert before footer
     if (!inserted) {
       const footer = document.querySelector('footer');
       if (footer) {
         footer.parentNode.insertBefore(landingPage, footer);
-      } else {
-        document.body.appendChild(landingPage);
+        inserted = true;
+        console.log('[DA9I9A] Landing page inserted before footer');
       }
-      console.log('[DA9I9A] Landing page inserted before footer');
+    }
+
+    // Fallback: find the main product container and append at the end
+    if (!inserted) {
+      const productContainers = [
+        '.product-single',
+        '.product-page',
+        '.product-container',
+        'main',
+        'article'
+      ];
+
+      for (const selector of productContainers) {
+        const el = document.querySelector(selector);
+        if (el) {
+          el.appendChild(landingPage);
+          inserted = true;
+          console.log('[DA9I9A] Landing page appended to:', selector);
+          break;
+        }
+      }
+    }
+
+    // Last resort: append to body
+    if (!inserted) {
+      document.body.appendChild(landingPage);
+      console.log('[DA9I9A] Landing page appended to body');
     }
   }
 

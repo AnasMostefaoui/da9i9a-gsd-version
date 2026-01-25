@@ -3,6 +3,8 @@
  * Above-the-fold content with product images, price, badges, and trust signals
  */
 
+import type { ColorPalette } from "~/lib/color-palettes";
+
 interface HeroSectionProps {
   hero: {
     headline: string;
@@ -14,13 +16,17 @@ interface HeroSectionProps {
   price: number | string;
   currency: string;
   isRTL: boolean;
+  palette: ColorPalette;
 }
 
-export function HeroSection({ hero, images, price, currency, isRTL }: HeroSectionProps) {
+export function HeroSection({ hero, images, price, currency, isRTL, palette }: HeroSectionProps) {
   const formattedPrice = typeof price === "string" ? parseFloat(price) : price;
 
   return (
-    <div className="bg-gradient-to-b from-orange-50 to-white pb-6">
+    <div
+      className="pb-6"
+      style={{ background: `linear-gradient(to bottom, ${palette.heroBgFrom} 0%, ${palette.heroBgTo} 100%)` }}
+    >
       {/* Product Image Carousel */}
       <div className="relative aspect-square bg-white">
         {images.length > 0 ? (
@@ -40,9 +46,8 @@ export function HeroSection({ hero, images, price, currency, isRTL }: HeroSectio
             {images.slice(0, 5).map((_, i) => (
               <div
                 key={i}
-                className={`w-2 h-2 rounded-full ${
-                  i === 0 ? "bg-orange-500" : "bg-gray-300"
-                }`}
+                className="w-2 h-2 rounded-full"
+                style={{ backgroundColor: i === 0 ? palette.primary : "#d1d5db" }}
               />
             ))}
           </div>
@@ -56,7 +61,8 @@ export function HeroSection({ hero, images, price, currency, isRTL }: HeroSectio
           {hero.badges.map((badge, i) => (
             <span
               key={i}
-              className="bg-orange-100 text-orange-700 text-xs font-medium px-2.5 py-1 rounded-full"
+              className="text-xs font-medium px-2.5 py-1 rounded-full"
+              style={{ backgroundColor: palette.primaryLight, color: palette.accent }}
             >
               {badge}
             </span>
@@ -71,7 +77,7 @@ export function HeroSection({ hero, images, price, currency, isRTL }: HeroSectio
 
         {/* Price */}
         <div className="flex items-baseline gap-2 mb-4">
-          <span className="text-3xl font-bold text-orange-600">
+          <span className="text-3xl font-bold" style={{ color: palette.primary }}>
             {formattedPrice.toFixed(2)}
           </span>
           <span className="text-lg text-gray-500">{currency}</span>

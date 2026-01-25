@@ -4,6 +4,7 @@
  */
 
 import { useState } from "react";
+import type { ColorPalette } from "~/lib/color-palettes";
 
 interface FAQSectionProps {
   faq: Array<{
@@ -11,9 +12,10 @@ interface FAQSectionProps {
     answer: string;
   }>;
   isRTL: boolean;
+  palette: ColorPalette;
 }
 
-export function FAQSection({ faq, isRTL }: FAQSectionProps) {
+export function FAQSection({ faq, isRTL, palette }: FAQSectionProps) {
   const [openIndex, setOpenIndex] = useState<number | null>(null);
 
   return (

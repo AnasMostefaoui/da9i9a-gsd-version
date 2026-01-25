@@ -3,6 +3,8 @@
  * "Us vs Others" feature checklist
  */
 
+import type { ColorPalette } from "~/lib/color-palettes";
+
 interface ComparisonTableProps {
   comparison: {
     title: string;
@@ -14,9 +16,10 @@ interface ComparisonTableProps {
     }>;
   };
   isRTL: boolean;
+  palette: ColorPalette;
 }
 
-export function ComparisonTable({ comparison, isRTL }: ComparisonTableProps) {
+export function ComparisonTable({ comparison, isRTL, palette }: ComparisonTableProps) {
   const usLabel = isRTL ? "نحن" : "Us";
   const othersLabel = isRTL ? "الآخرين" : "Others";
 

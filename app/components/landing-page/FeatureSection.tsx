@@ -3,6 +3,8 @@
  * Main selling points with icons and descriptions
  */
 
+import type { ColorPalette } from "~/lib/color-palettes";
+
 interface FeatureSectionProps {
   features: {
     title: string;
@@ -14,6 +16,7 @@ interface FeatureSectionProps {
     }>;
   };
   isRTL: boolean;
+  palette: ColorPalette;
 }
 
 const iconMap: Record<string, string> = {
@@ -25,7 +28,7 @@ const iconMap: Record<string, string> = {
   check: "✅",
 };
 
-export function FeatureSection({ features, isRTL }: FeatureSectionProps) {
+export function FeatureSection({ features, isRTL, palette }: FeatureSectionProps) {
   return (
     <div className="px-4 py-6 bg-white">
       <h2 className="text-xl font-bold text-gray-900 mb-2">{features.title}</h2>
@@ -37,7 +40,10 @@ export function FeatureSection({ features, isRTL }: FeatureSectionProps) {
             key={i}
             className="flex gap-4 p-4 bg-gray-50 rounded-xl"
           >
-            <div className="flex-shrink-0 w-12 h-12 bg-orange-100 rounded-xl flex items-center justify-center text-2xl">
+            <div
+              className="flex-shrink-0 w-12 h-12 rounded-xl flex items-center justify-center text-2xl"
+              style={{ backgroundColor: palette.primaryLight }}
+            >
               {iconMap[highlight.icon] || "✨"}
             </div>
             <div>

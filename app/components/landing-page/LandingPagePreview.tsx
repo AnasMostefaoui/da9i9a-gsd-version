@@ -4,6 +4,8 @@
  */
 
 import type { LandingPageContent } from "~/services/ai/types";
+import type { ColorPalette } from "~/lib/color-palettes";
+import { getPalette } from "~/lib/color-palettes";
 import { HeroSection } from "./HeroSection";
 import { FeatureSection } from "./FeatureSection";
 import { CTASection } from "./CTASection";
@@ -17,6 +19,7 @@ interface LandingPagePreviewProps {
   productImages: string[];
   price: number | string;
   currency: string;
+  palette?: ColorPalette;
 }
 
 export function LandingPagePreview({
@@ -24,6 +27,7 @@ export function LandingPagePreview({
   productImages,
   price,
   currency,
+  palette = getPalette("orange"),
 }: LandingPagePreviewProps) {
   const isRTL = content?.lang === "ar";
 
@@ -55,30 +59,39 @@ export function LandingPagePreview({
         price={price}
         currency={currency}
         isRTL={isRTL}
+        palette={palette}
       />
 
       {/* Features */}
-      <FeatureSection features={content.features} isRTL={isRTL} />
+      <FeatureSection features={content.features} isRTL={isRTL} palette={palette} />
 
       {/* CTA Banner */}
-      <CTASection cta={content.cta} isRTL={isRTL} />
+      <CTASection cta={content.cta} isRTL={isRTL} palette={palette} />
 
       {/* Social Proof */}
-      <SocialProofSection socialProof={content.socialProof} isRTL={isRTL} />
+      <SocialProofSection socialProof={content.socialProof} isRTL={isRTL} palette={palette} />
 
       {/* Benefits Grid */}
-      <BenefitsGrid benefits={content.benefits} isRTL={isRTL} />
+      <BenefitsGrid benefits={content.benefits} isRTL={isRTL} palette={palette} />
 
       {/* Comparison */}
-      <ComparisonTable comparison={content.comparison} isRTL={isRTL} />
+      <ComparisonTable comparison={content.comparison} isRTL={isRTL} palette={palette} />
 
       {/* FAQ */}
-      <FAQSection faq={content.faq} isRTL={isRTL} />
+      <FAQSection faq={content.faq} isRTL={isRTL} palette={palette} />
 
       {/* Footer CTA */}
-      <div className="bg-gradient-to-r from-blue-600 to-blue-700 p-6 text-center">
-        <p className="text-white font-medium mb-3">{content.cta.headline}</p>
-        <button className="bg-white text-blue-600 px-8 py-3 rounded-full font-bold shadow-lg">
+      <div
+        className="p-6 text-center"
+        style={{ background: `linear-gradient(135deg, ${palette.ctaBgFrom} 0%, ${palette.ctaBgTo} 100%)` }}
+      >
+        <p className="font-medium mb-3" style={{ color: palette.textOnPrimary }}>
+          {content.cta.headline}
+        </p>
+        <button
+          className="px-8 py-3 rounded-full font-bold shadow-lg"
+          style={{ backgroundColor: "white", color: palette.primary }}
+        >
           {content.cta.buttonText}
         </button>
       </div>

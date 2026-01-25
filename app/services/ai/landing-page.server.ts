@@ -94,16 +94,143 @@ function buildLandingPagePrompt(product: ProductData, lang: "ar" | "en"): string
   const price = typeof product.price === "string" ? parseFloat(product.price) : product.price;
 
   const langInstructions = lang === "ar"
-    ? `Write ALL content in Arabic (العربية). Use natural, compelling Arabic marketing language. Right-to-left text direction.`
+    ? `Write ALL content in KSA-style Arabic (العربية السعودية).
+
+## KSA Arabic Style Guidelines
+
+### Language Style:
+- Use Modern Standard Arabic (الفصحى) with a Gulf Arabic touch
+- Be professional yet warm - Saudis appreciate quality and trust
+- Be confident and direct - avoid overly flowery language
+- Right-to-left text direction
+
+### Vocabulary Preferences (USE THESE TERMS):
+- "توصيل سريع" for fast delivery
+- "شحن مجاني" for free shipping
+- "ضمان" for warranty/guarantee
+- "جودة عالية" or "جودة ممتازة" for high quality
+- "أصلي 100%" for 100% authentic
+- "متوفر الآن" for available now
+- "أفضل سعر" for best price
+- "خدمة عملاء" for customer service
+- "الدفع عند الاستلام" for cash on delivery
+- "منتج مميز" for featured/special product
+- "اطلب الآن" for order now
+- "عرض محدود" for limited offer
+
+### Cultural Considerations:
+- Reference fast delivery within KSA (1-3 days)
+- Mention secure payment and trusted shopping
+- Quality assurance and authenticity are very important
+- Warranty and return policies build trust
+
+CRITICAL: Do NOT transliterate English words. Transform the message for Saudi buyers. Make it sound native, not translated.`
     : `Write ALL content in English. Use natural, compelling American English marketing language.`;
 
-  const exampleHero = lang === "ar"
-    ? { headline: "صوت احترافي لمحتواك", subheadline: "جودة استوديو بسعر مناسب", badges: ["شحن مجاني", "ضمان سنة"], trustSignals: ["5000+ عميل راضي"] }
-    : { headline: "Professional Sound for Creators", subheadline: "Studio quality at an affordable price", badges: ["Free Shipping", "1 Year Warranty"], trustSignals: ["5000+ Happy Customers"] };
-
-  const exampleCta = lang === "ar"
-    ? { headline: "عرض لفترة محدودة", description: "اطلب الآن واحصل على شحن مجاني", buttonText: "اطلب الآن" }
-    : { headline: "Limited Time Offer", description: "Order now and get free shipping", buttonText: "Order Now" };
+  // Language-specific examples for the JSON schema
+  const examples = lang === "ar" ? {
+    hero: {
+      headline: "صوت احترافي لمحتواك",
+      subheadline: "جودة ممتازة بأفضل سعر",
+      badges: ["شحن مجاني", "ضمان سنة", "أصلي 100%"],
+      trustSignals: ["أكثر من 5000 عميل راضي في السعودية"]
+    },
+    cta: {
+      headline: "عرض محدود",
+      description: "اطلب الآن واحصل على شحن مجاني داخل المملكة",
+      buttonText: "اطلب الآن"
+    },
+    features: {
+      title: "لماذا تختار هذا المنتج؟",
+      description: "فقرة قصيرة عن فوائد المنتج...",
+      highlights: [
+        { icon: "star", title: "جودة ممتازة", description: "صُنع من أفضل الخامات" },
+        { icon: "shield", title: "ضمان شامل", description: "ضمان لمدة سنة كاملة" },
+        { icon: "zap", title: "أداء قوي", description: "نتائج مبهرة من أول استخدام" }
+      ]
+    },
+    socialProof: {
+      title: "ماذا يقول عملاؤنا",
+      stats: [
+        { value: "92%", label: "رضا العملاء" },
+        { value: "87%", label: "يوصون به" },
+        { value: "4.8", label: "متوسط التقييم" }
+      ]
+    },
+    benefits: [
+      { icon: "truck", title: "توصيل سريع", description: "يصلك خلال 1-3 أيام" },
+      { icon: "headset", title: "خدمة عملاء", description: "متواجدون لمساعدتك" },
+      { icon: "award", title: "جودة عالية", description: "منتج أصلي ومضمون" },
+      { icon: "refresh", title: "استرجاع سهل", description: "ضمان 30 يوم" }
+    ],
+    comparison: {
+      title: "ما يميزنا عن غيرنا",
+      description: "قارن بنفسك واكتشف الفرق",
+      features: [
+        { name: "خامات ممتازة", us: true, others: false },
+        { name: "شحن مجاني", us: true, others: false },
+        { name: "ضمان سنة", us: true, others: true },
+        { name: "خدمة عملاء 24/7", us: true, others: false }
+      ]
+    },
+    faq: [
+      { question: "كم يستغرق التوصيل؟", answer: "يصلك طلبك خلال 1-3 أيام عمل داخل المملكة." },
+      { question: "هل المنتج أصلي؟", answer: "نعم، جميع منتجاتنا أصلية 100% ومضمونة." },
+      { question: "ما هي سياسة الاسترجاع؟", answer: "يمكنك استرجاع المنتج خلال 30 يوم من الاستلام." },
+      { question: "هل يوجد الدفع عند الاستلام؟", answer: "نعم، نوفر خيار الدفع عند الاستلام." }
+    ]
+  } : {
+    hero: {
+      headline: "Professional Sound for Creators",
+      subheadline: "Studio quality at an affordable price",
+      badges: ["Free Shipping", "1 Year Warranty"],
+      trustSignals: ["5000+ Happy Customers"]
+    },
+    cta: {
+      headline: "Limited Time Offer",
+      description: "Order now and get free shipping",
+      buttonText: "Order Now"
+    },
+    features: {
+      title: "Why Choose This Product",
+      description: "Brief intro paragraph about the product benefits...",
+      highlights: [
+        { icon: "star", title: "Feature 1", description: "Benefit description" },
+        { icon: "shield", title: "Feature 2", description: "Benefit description" },
+        { icon: "zap", title: "Feature 3", description: "Benefit description" }
+      ]
+    },
+    socialProof: {
+      title: "What Our Customers Say",
+      stats: [
+        { value: "92%", label: "Customer Satisfaction" },
+        { value: "87%", label: "Would Recommend" },
+        { value: "4.8", label: "Average Rating" }
+      ]
+    },
+    benefits: [
+      { icon: "truck", title: "Fast Shipping", description: "Delivered to your door" },
+      { icon: "headset", title: "24/7 Support", description: "Always here to help" },
+      { icon: "award", title: "Premium Quality", description: "Built to last" },
+      { icon: "refresh", title: "Easy Returns", description: "30-day guarantee" }
+    ],
+    comparison: {
+      title: "Why We're Different",
+      description: "See how we compare to the competition",
+      features: [
+        { name: "Premium Materials", us: true, others: false },
+        { name: "Free Shipping", us: true, others: false },
+        { name: "1 Year Warranty", us: true, others: true },
+        { name: "24/7 Support", us: true, others: false }
+      ]
+    },
+    faq: [
+      { question: "Question 1?", answer: "Detailed answer..." },
+      { question: "Question 2?", answer: "Detailed answer..." },
+      { question: "Question 3?", answer: "Detailed answer..." },
+      { question: "Question 4?", answer: "Detailed answer..." }
+    ]
+  };
 
   return `You are an expert e-commerce landing page copywriter. Generate compelling marketing content for a product landing page.
 
@@ -124,52 +251,13 @@ Generate a complete landing page content JSON that will be rendered by a fixed t
 ## Output JSON Schema (fill in ALL fields)
 
 {
-  "hero": {
-    "headline": "${exampleHero.headline}",
-    "subheadline": "${exampleHero.subheadline}",
-    "badges": ${JSON.stringify(exampleHero.badges)},
-    "trustSignals": ${JSON.stringify(exampleHero.trustSignals)}
-  },
-  "features": {
-    "title": "Why Choose This Product",
-    "description": "Brief intro paragraph about the product benefits...",
-    "highlights": [
-      { "icon": "star", "title": "Feature 1", "description": "Benefit description" },
-      { "icon": "shield", "title": "Feature 2", "description": "Benefit description" },
-      { "icon": "zap", "title": "Feature 3", "description": "Benefit description" }
-    ]
-  },
-  "cta": ${JSON.stringify(exampleCta)},
-  "socialProof": {
-    "title": "What Our Customers Say",
-    "stats": [
-      { "value": "92%", "label": "Customer Satisfaction" },
-      { "value": "87%", "label": "Would Recommend" },
-      { "value": "4.8", "label": "Average Rating" }
-    ]
-  },
-  "benefits": [
-    { "icon": "truck", "title": "Fast Shipping", "description": "Delivered to your door" },
-    { "icon": "headset", "title": "24/7 Support", "description": "Always here to help" },
-    { "icon": "award", "title": "Premium Quality", "description": "Built to last" },
-    { "icon": "refresh", "title": "Easy Returns", "description": "30-day guarantee" }
-  ],
-  "comparison": {
-    "title": "Why We're Different",
-    "description": "See how we compare to the competition",
-    "features": [
-      { "name": "Premium Materials", "us": true, "others": false },
-      { "name": "Free Shipping", "us": true, "others": false },
-      { "name": "1 Year Warranty", "us": true, "others": true },
-      { "name": "24/7 Support", "us": true, "others": false }
-    ]
-  },
-  "faq": [
-    { "question": "Question 1?", "answer": "Detailed answer..." },
-    { "question": "Question 2?", "answer": "Detailed answer..." },
-    { "question": "Question 3?", "answer": "Detailed answer..." },
-    { "question": "Question 4?", "answer": "Detailed answer..." }
-  ]
+  "hero": ${JSON.stringify(examples.hero, null, 2).split('\n').join('\n  ')},
+  "features": ${JSON.stringify(examples.features, null, 2).split('\n').join('\n  ')},
+  "cta": ${JSON.stringify(examples.cta, null, 2).split('\n').join('\n  ')},
+  "socialProof": ${JSON.stringify(examples.socialProof, null, 2).split('\n').join('\n  ')},
+  "benefits": ${JSON.stringify(examples.benefits, null, 2).split('\n').join('\n  ')},
+  "comparison": ${JSON.stringify(examples.comparison, null, 2).split('\n').join('\n  ')},
+  "faq": ${JSON.stringify(examples.faq, null, 2).split('\n').join('\n  ')}
 }
 
 ## Guidelines
