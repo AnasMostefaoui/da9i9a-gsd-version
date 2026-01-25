@@ -4,7 +4,7 @@ import { redirect, data } from "react-router";
 import { useState } from "react";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
-import { getGeminiProvider, isGeminiConfigured, generateLandingPageContent } from "~/services/ai";
+import { getGeminiProvider, isGeminiConfigured, generateLandingPageContent, translateToArabic } from "~/services/ai";
 import type { LandingPageContent } from "~/services/ai/types";
 import { SallaClient } from "~/services/salla";
 import { LandingPagePreview } from "~/components/landing-page";
@@ -122,6 +122,44 @@ export async function action({ request, params }: Route.ActionArgs) {
       } catch (error) {
         console.error("Enhancement error:", error);
         return data({ success: false, message: null, error: "فشل في تحسين المنتج" }, { status: 500 });
+      }
+    }
+
+    case "translate-arabic": {
+      if (!isGeminiConfigured()) {
+        return data({ success: false, message: null, error: "Gemini API غير مكوّن" }, { status: 500 });
+      }
+
+      if (!product.titleEn) {
+        return data({ success: false, message: null, error: "يجب وجود عنوان إنجليزي للترجمة" }, { status: 400 });
+      }
+
+      try {
+        const metadata = (product.metadata as Record<string, unknown>) || {};
+        const highlights = metadata.highlights as string[] | undefined;
+
+        const arabicContent = await translateToArabic({
+          title: product.titleEn,
+          description: product.descriptionEn || "",
+          highlights,
+        });
+
+        await db.product.update({
+          where: { id },
+          data: {
+            titleAr: arabicContent.titleAr,
+            descriptionAr: arabicContent.descriptionAr,
+            metadata: {
+              ...metadata,
+              highlightsAr: arabicContent.highlightsAr,
+            },
+          },
+        });
+
+        return data({ success: true, message: "تمت الترجمة للعربية بنجاح", error: null });
+      } catch (error) {
+        console.error("Translation error:", error);
+        return data({ success: false, message: null, error: "فشل في الترجمة" }, { status: 500 });
       }
     }
 
@@ -393,7 +431,11 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
           </div>
 
           {/* Product Details Form */}
-          <Form method="post" className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6 mb-6">
+          <Form
+            method="post"
+            key={`${product.titleAr}-${product.descriptionAr}`}
+            className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6 mb-6"
+          >
             <input type="hidden" name="intent" value="update" />
             <input type="hidden" name="selectedImages" value={JSON.stringify(selectedImages)} />
 
@@ -492,6 +534,23 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
             </div>
           </Form>
 
+          {/* Arabic Translation Warning */}
+          {product.contentLang === "ar" && !product.titleAr && product.titleEn && (
+            <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+              <div className="flex items-start gap-3">
+                <span className="text-xl">⚠️</span>
+                <div className="flex-1">
+                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                    المحتوى العربي غير مكتمل
+                  </p>
+                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                    اخترت اللغة العربية عند الاستيراد، لكن الترجمة لم تكتمل. انقر على "ترجمة" لإكمال المحتوى العربي.
+                  </p>
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* Actions Grid */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             {/* Enhance Card */}
@@ -514,6 +573,40 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
               </Form>
             </div>
 
+            {/* Translate to Arabic Card */}
+            <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-sm border p-4 ${
+              product.contentLang === "ar" && !product.titleAr && product.titleEn
+                ? "border-amber-400 dark:border-amber-600 ring-2 ring-amber-200 dark:ring-amber-800"
+                : "border-gray-200 dark:border-gray-800"
+            }`}>
+              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+                ترجمة للعربية
+              </h3>
+              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+                ترجمة المحتوى بأسلوب سعودي
+              </p>
+              <Form method="post">
+                <input type="hidden" name="intent" value="translate-arabic" />
+                <button
+                  type="submit"
+                  disabled={isSubmitting || !product.titleEn || product.status === "PUSHED"}
+                  className={`w-full px-4 py-2 text-sm text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
+                    product.contentLang === "ar" && !product.titleAr && product.titleEn
+                      ? "bg-gradient-to-l from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 animate-pulse"
+                      : "bg-gradient-to-l from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+                  }`}
+                >
+                  {isSubmitting && currentIntent === "translate-arabic" ? "جاري الترجمة..." : "🇸🇦 ترجمة"}
+                </button>
+              </Form>
+              {!product.titleEn && (
+                <p className="mt-2 text-xs text-amber-600">يجب وجود عنوان إنجليزي</p>
+              )}
+            </div>
+          </div>
+
+          {/* Second Actions Row */}
+          <div className="grid grid-cols-2 gap-4 mb-6">
             {/* Push to Salla Card */}
             <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-4">
               <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
@@ -580,12 +673,12 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
             </Form>
           </div>
 
-          {/* Color Palette Selector */}
+          {/* Color Palette Selector - Visual Pairs */}
           <div className="mb-4">
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
               لوحة الألوان
             </label>
-            <div className="flex flex-wrap gap-2">
+            <div className="grid grid-cols-4 gap-2">
               {PALETTE_IDS.map((paletteId) => {
                 const palette = COLOR_PALETTES[paletteId];
                 const isSelected = selectedPalette === paletteId;
@@ -600,20 +693,38 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
                         { method: "post" }
                       );
                     }}
-                    className={`flex items-center gap-2 px-3 py-2 rounded-lg border-2 transition-all ${
+                    className={`relative flex flex-col items-center p-2 rounded-lg border-2 transition-all ${
                       isSelected
                         ? "border-gray-800 dark:border-white ring-2 ring-gray-400/30"
-                        : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                        : "border-gray-200 dark:border-gray-700 hover:border-gray-400"
                     }`}
                     title={palette.name}
                   >
+                    {/* Color pair preview - shows actual palette combination */}
                     <div
-                      className="w-5 h-5 rounded-full"
-                      style={{ background: `linear-gradient(135deg, ${palette.primary} 0%, ${palette.primaryHover} 100%)` }}
-                    />
-                    <span className="text-xs text-gray-600 dark:text-gray-400">
+                      className="w-full h-10 rounded-md mb-1 overflow-hidden"
+                      style={{ background: `linear-gradient(180deg, ${palette.heroBgFrom} 0%, ${palette.heroBgTo} 100%)` }}
+                    >
+                      {/* Primary + Accent color bars */}
+                      <div className="flex h-full items-end p-1 gap-1">
+                        <div
+                          className="flex-1 h-4 rounded-sm"
+                          style={{ backgroundColor: palette.primary }}
+                        />
+                        <div
+                          className="flex-1 h-4 rounded-sm"
+                          style={{ backgroundColor: palette.accent }}
+                        />
+                      </div>
+                    </div>
+                    <span className="text-[10px] text-gray-600 dark:text-gray-400 truncate w-full text-center">
                       {palette.nameAr}
                     </span>
+                    {isSelected && (
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-gray-800 dark:bg-white rounded-full flex items-center justify-center">
+                        <span className="text-white dark:text-gray-800 text-[8px]">✓</span>
+                      </div>
+                    )}
                   </button>
                 );
               })}

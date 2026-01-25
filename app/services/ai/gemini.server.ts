@@ -38,8 +38,21 @@ export class GeminiProvider implements AIProvider {
           contents: [{ parts: [{ text: prompt }] }],
           generationConfig: {
             responseMimeType: "application/json",
-            temperature: 0.7, // Some creativity for marketing copy
-            maxOutputTokens: 4096, // Increased to avoid truncation
+            responseSchema: {
+              type: "OBJECT",
+              properties: {
+                title: { type: "STRING", description: "Marketing-focused product title (max 65 chars)" },
+                description: { type: "STRING", description: "2-3 paragraph marketing description" },
+                highlights: {
+                  type: "ARRAY",
+                  items: { type: "STRING" },
+                  description: "3-4 benefit-focused bullet points (max 50 chars each)"
+                }
+              },
+              required: ["title", "description", "highlights"]
+            },
+            temperature: 0.7,
+            maxOutputTokens: 4096,
           },
         }),
       }
@@ -58,9 +71,9 @@ export class GeminiProvider implements AIProvider {
       throw new Error("No response from Gemini");
     }
 
+    // Try standard JSON parse first
     try {
       const parsed = JSON.parse(text);
-
       console.log(`[Gemini] Successfully generated marketing content`);
 
       return {
@@ -71,53 +84,34 @@ export class GeminiProvider implements AIProvider {
         provider: this.name,
       };
     } catch (parseError) {
-      console.error(`[Gemini] Failed to parse response: ${text.slice(0, 500)}...`);
+      // Fallback: Extract fields with regex if JSON is malformed
+      console.warn(`[Gemini] JSON parse failed, attempting regex extraction...`);
 
-      // Try to salvage truncated JSON
-      const salvaged = this.tryRecoverTruncatedJson(text);
-      if (salvaged) {
-        console.log(`[Gemini] Recovered truncated response`);
+      const titleMatch = text.match(/"title"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+      const descMatch = text.match(/"description"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+
+      let highlights: string[] = [];
+      const highlightsMatch = text.match(/"highlights"\s*:\s*\[([\s\S]*?)\]/);
+      if (highlightsMatch) {
+        const items = highlightsMatch[1].matchAll(/"((?:[^"\\]|\\.)*)"/g);
+        highlights = Array.from(items, (m: RegExpMatchArray) => m[1])
+          .map(h => h.replace(/\\n/g, '\n').replace(/\\"/g, '"'))
+          .filter(h => h.length > 5);
+      }
+
+      if (titleMatch) {
+        console.log(`[Gemini] Recovered content via regex`);
         return {
-          title: salvaged.title || signals.title,
-          description: salvaged.description || "",
-          highlights: salvaged.highlights || [],
+          title: titleMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"'),
+          description: descMatch?.[1]?.replace(/\\n/g, '\n').replace(/\\"/g, '"') || "",
+          highlights,
           generatedAt: new Date(),
           provider: this.name,
         };
       }
 
-      throw new Error("Failed to parse Gemini response as JSON");
+      throw new Error("Failed to parse Gemini response");
     }
-  }
-
-  /**
-   * Attempt to recover usable data from truncated JSON
-   */
-  private tryRecoverTruncatedJson(text: string): { title?: string; description?: string; highlights?: string[] } | null {
-    try {
-      // Try to extract fields with regex even if JSON is broken
-      const titleMatch = text.match(/"title"\s*:\s*"([^"]+)"/);
-      const descMatch = text.match(/"description"\s*:\s*"((?:[^"\\]|\\.)*)"/);
-
-      if (titleMatch || descMatch) {
-        // Extract highlights that are complete
-        const highlightsMatch = text.match(/"highlights"\s*:\s*\[([\s\S]*)/);
-        let highlights: string[] = [];
-        if (highlightsMatch) {
-          const itemMatches = highlightsMatch[1].matchAll(/"([^"]+)"/g);
-          highlights = Array.from(itemMatches, m => m[1]).filter(h => h.length > 5);
-        }
-
-        return {
-          title: titleMatch?.[1],
-          description: descMatch?.[1]?.replace(/\\n/g, '\n').replace(/\\"/g, '"'),
-          highlights,
-        };
-      }
-    } catch {
-      // Recovery failed
-    }
-    return null;
   }
 
   private buildMarketingPrompt(signals: ProductSignals): string {
@@ -315,8 +309,21 @@ CRITICAL: Do NOT transliterate. Transform the message for Saudi buyers. Make it 
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              titleAr: { type: "STRING", description: "Arabic product title (max 70 chars)" },
+              descriptionAr: { type: "STRING", description: "Arabic marketing description (2-3 paragraphs)" },
+              highlightsAr: {
+                type: "ARRAY",
+                items: { type: "STRING" },
+                description: "Arabic bullet points (3-4 items, max 40 chars each)"
+              }
+            },
+            required: ["titleAr", "descriptionAr", "highlightsAr"]
+          },
           temperature: 0.6,
-          maxOutputTokens: 2048,
+          maxOutputTokens: 4096, // Increased for Arabic content
         },
       }),
     }
@@ -335,12 +342,44 @@ CRITICAL: Do NOT transliterate. Transform the message for Saudi buyers. Make it 
     throw new Error("No translation response from Gemini");
   }
 
-  const parsed = JSON.parse(text);
-  console.log(`[Gemini] Successfully translated to KSA Arabic`);
+  // Try standard JSON parse first
+  try {
+    const parsed = JSON.parse(text);
+    console.log(`[Gemini] Successfully translated to KSA Arabic`);
 
-  return {
-    titleAr: parsed.titleAr,
-    descriptionAr: parsed.descriptionAr,
-    highlightsAr: parsed.highlightsAr || [],
-  };
+    return {
+      titleAr: parsed.titleAr,
+      descriptionAr: parsed.descriptionAr,
+      highlightsAr: parsed.highlightsAr || [],
+    };
+  } catch (parseError) {
+    // Fallback: Extract fields with regex if JSON is malformed
+    console.warn(`[Gemini] JSON parse failed, attempting regex extraction...`);
+
+    const titleMatch = text.match(/"titleAr"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+    const descMatch = text.match(/"descriptionAr"\s*:\s*"((?:[^"\\]|\\.)*)"/);
+
+    // For highlightsAr, try to find complete array or extract individual items
+    let highlightsAr: string[] = [];
+    const highlightsArrayMatch = text.match(/"highlightsAr"\s*:\s*\[([\s\S]*?)\]/);
+    if (highlightsArrayMatch) {
+      const items = highlightsArrayMatch[1].matchAll(/"((?:[^"\\]|\\.)*)"/g);
+      highlightsAr = Array.from(items, (m: RegExpMatchArray) => m[1])
+        .map(h => h.replace(/\\n/g, '\n').replace(/\\"/g, '"'))
+        .filter(h => h.length > 3);
+    }
+
+    if (titleMatch) {
+      console.log(`[Gemini] Recovered Arabic translation via regex`);
+      return {
+        titleAr: titleMatch[1].replace(/\\n/g, '\n').replace(/\\"/g, '"'),
+        descriptionAr: descMatch?.[1]?.replace(/\\n/g, '\n').replace(/\\"/g, '"') || "",
+        highlightsAr,
+      };
+    }
+
+    // If regex also fails, throw with context
+    console.error(`[Gemini] Failed to extract Arabic content. Raw response: ${text.slice(0, 300)}...`);
+    throw new Error("Failed to parse Arabic translation response");
+  }
 }

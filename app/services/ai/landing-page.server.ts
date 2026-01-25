@@ -49,8 +49,114 @@ export async function generateLandingPageContent(
         contents: [{ parts: [{ text: prompt }] }],
         generationConfig: {
           responseMimeType: "application/json",
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              hero: {
+                type: "OBJECT",
+                properties: {
+                  headline: { type: "STRING" },
+                  subheadline: { type: "STRING" },
+                  badges: { type: "ARRAY", items: { type: "STRING" } },
+                  trustSignals: { type: "ARRAY", items: { type: "STRING" } }
+                },
+                required: ["headline", "subheadline", "badges", "trustSignals"]
+              },
+              features: {
+                type: "OBJECT",
+                properties: {
+                  title: { type: "STRING" },
+                  description: { type: "STRING" },
+                  highlights: {
+                    type: "ARRAY",
+                    items: {
+                      type: "OBJECT",
+                      properties: {
+                        icon: { type: "STRING" },
+                        title: { type: "STRING" },
+                        description: { type: "STRING" }
+                      },
+                      required: ["icon", "title", "description"]
+                    }
+                  }
+                },
+                required: ["title", "description", "highlights"]
+              },
+              cta: {
+                type: "OBJECT",
+                properties: {
+                  headline: { type: "STRING" },
+                  description: { type: "STRING" },
+                  buttonText: { type: "STRING" }
+                },
+                required: ["headline", "description", "buttonText"]
+              },
+              socialProof: {
+                type: "OBJECT",
+                properties: {
+                  title: { type: "STRING" },
+                  stats: {
+                    type: "ARRAY",
+                    items: {
+                      type: "OBJECT",
+                      properties: {
+                        value: { type: "STRING" },
+                        label: { type: "STRING" }
+                      },
+                      required: ["value", "label"]
+                    }
+                  }
+                },
+                required: ["title", "stats"]
+              },
+              benefits: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    icon: { type: "STRING" },
+                    title: { type: "STRING" },
+                    description: { type: "STRING" }
+                  },
+                  required: ["icon", "title", "description"]
+                }
+              },
+              comparison: {
+                type: "OBJECT",
+                properties: {
+                  title: { type: "STRING" },
+                  description: { type: "STRING" },
+                  features: {
+                    type: "ARRAY",
+                    items: {
+                      type: "OBJECT",
+                      properties: {
+                        name: { type: "STRING" },
+                        us: { type: "BOOLEAN" },
+                        others: { type: "BOOLEAN" }
+                      },
+                      required: ["name", "us", "others"]
+                    }
+                  }
+                },
+                required: ["title", "description", "features"]
+              },
+              faq: {
+                type: "ARRAY",
+                items: {
+                  type: "OBJECT",
+                  properties: {
+                    question: { type: "STRING" },
+                    answer: { type: "STRING" }
+                  },
+                  required: ["question", "answer"]
+                }
+              }
+            },
+            required: ["hero", "features", "cta", "socialProof", "benefits", "comparison", "faq"]
+          },
           temperature: 0.7,
-          maxOutputTokens: 8192, // Landing page content is larger
+          maxOutputTokens: 8192,
         },
       }),
     }
@@ -69,23 +175,19 @@ export async function generateLandingPageContent(
     throw new Error("No response from Gemini");
   }
 
-  try {
-    const parsed = JSON.parse(text);
+  // With responseSchema, Gemini guarantees valid JSON matching our schema
+  const parsed = JSON.parse(text);
 
-    // Add metadata
-    const content: LandingPageContent = {
-      ...parsed,
-      generatedAt: new Date().toISOString(),
-      lang,
-    };
+  // Add metadata
+  const content: LandingPageContent = {
+    ...parsed,
+    generatedAt: new Date().toISOString(),
+    lang,
+  };
 
-    console.log(`[LandingPage] Successfully generated ${lang} landing page content`);
+  console.log(`[LandingPage] Successfully generated ${lang} landing page content`);
 
-    return content;
-  } catch (parseError) {
-    console.error(`[LandingPage] Failed to parse response: ${text.slice(0, 500)}...`);
-    throw new Error("Failed to parse landing page content as JSON");
-  }
+  return content;
 }
 
 function buildLandingPagePrompt(product: ProductData, lang: "ar" | "en"): string {
