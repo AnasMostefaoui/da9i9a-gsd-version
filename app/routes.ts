@@ -16,4 +16,7 @@ export default [
 
   // Widget endpoint (loaded by Salla stores via App Snippet)
   route("widget", "routes/widget.ts"),
+
+  // API endpoints (for widget to fetch data)
+  route("api/landing/:productId", "routes/api.landing.$productId.ts"),
 ] satisfies RouteConfig;
