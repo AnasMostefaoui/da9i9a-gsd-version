@@ -8,8 +8,8 @@ cmds = ["pnpm install --frozen-lockfile --ignore-scripts"]
 
 [phases.build]
 cmds = [
-    "pnpm run build",
     "npx prisma generate",
+    "pnpm run build",
     "npx prisma migrate deploy"
 ]
 
