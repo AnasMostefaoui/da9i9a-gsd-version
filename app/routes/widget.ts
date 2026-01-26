@@ -645,10 +645,15 @@ export async function loader({ request }: LoaderFunctionArgs) {
 })();
 `;
 
+  // Cache widget in production, no-cache in development for easier debugging
+  const cacheControl = process.env.NODE_ENV === "production"
+    ? "public, max-age=300"  // 5 minutes in production
+    : "no-cache, max-age=0"; // No cache in development
+
   return new Response(widgetScript, {
     headers: {
       "Content-Type": "application/javascript; charset=utf-8",
-      "Cache-Control": "public, max-age=300",
+      "Cache-Control": cacheControl,
       "Access-Control-Allow-Origin": "*",
     },
   });
