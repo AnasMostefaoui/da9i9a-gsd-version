@@ -1,9 +1,7 @@
 # Nixpacks configuration for Railway deployment
 
 [phases.setup]
-nixPkgs = ["nodejs_20"]
-nixLibs = ["openssl"]
-cmds = ["npm install -g pnpm"]
+nixPkgs = ["nodejs_20", "pnpm", "openssl"]
 
 [phases.install]
 cmds = ["pnpm install --frozen-lockfile"]
