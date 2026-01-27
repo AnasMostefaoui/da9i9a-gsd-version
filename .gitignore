@@ -33,7 +33,7 @@ coverage/
 # Misc
 *.tsbuildinfo
 
-/generated/prisma
+# Prisma generated client (in node_modules)
 
 # Apify response cache
 .cache/
