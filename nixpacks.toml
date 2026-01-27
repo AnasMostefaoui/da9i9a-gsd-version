@@ -1,17 +1,16 @@
 # Nixpacks configuration for Railway deployment
 
 [phases.setup]
-nixPkgs = ["nodejs_20", "pnpm", "openssl"]
+nixPkgs = ["nodejs_22", "pnpm", "openssl"]
 
 [phases.install]
 cmds = ["pnpm install --frozen-lockfile --ignore-scripts"]
 
 [phases.build]
 cmds = [
-    "npx prisma generate",
-    "pnpm run build",
-    "npx prisma migrate deploy"
+    "pnpm exec prisma generate",
+    "pnpm run build"
 ]
 
 [start]
-cmd = "pnpm run start"
+cmd = "pnpm exec prisma migrate deploy && pnpm run start"
