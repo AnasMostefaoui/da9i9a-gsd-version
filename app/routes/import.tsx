@@ -4,8 +4,8 @@ import { Form, useNavigation, Link } from "react-router";
 import { redirect, data } from "react-router";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
-import { detectPlatform, getScrapingOrchestrator } from "~/services/scraping/index.server";
-import { getGeminiProvider, isGeminiConfigured, translateToArabic } from "~/services/ai";
+import { detectPlatform } from "~/services/scraping/index.server";
+import { inngest } from "~/inngest/client";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -24,7 +24,6 @@ export async function action({ request }: Route.ActionArgs) {
   const formData = await request.formData();
   const url = formData.get("url") as string;
   const contentLang = (formData.get("contentLang") as "ar" | "en") || "ar";
-  const forceRefresh = formData.get("forceRefresh") === "true";
 
   if (!url) {
     return data({ error: "الرجاء إدخال رابط المنتج" }, { status: 400 });
@@ -68,138 +67,38 @@ export async function action({ request }: Route.ActionArgs) {
     return redirect(`/products/${product.id}`);
   }
 
-  try {
-    // Get the scraping orchestrator (uses fallback chains)
-    const orchestrator = getScrapingOrchestrator();
+  // Create product with IMPORTING status
+  const product = await db.product.create({
+    data: {
+      merchantId,
+      sourceUrl: url,
+      platform: platform.toUpperCase() as "ALIEXPRESS" | "AMAZON",
+      price: 0, // Will be updated by scraper
+      currency: "SAR",
+      status: "IMPORTING",
+      contentLang,
+      metadata: JSON.parse(JSON.stringify({
+        queuedAt: new Date().toISOString(),
+      })),
+    },
+  });
 
-    console.log(`[Import] Scraping product from ${platform}: ${url}`);
-    console.log(`[Import] Available providers: ${orchestrator.getAvailableProviders().join(", ")}`);
+  console.log(`[Import] Created product ${product.id} with IMPORTING status`);
 
-    const scraped = await orchestrator.scrapeProduct(url, forceRefresh);
+  // Queue Inngest job for async scraping
+  await inngest.send({
+    name: "product/scrape.requested",
+    data: {
+      productId: product.id,
+      sourceUrl: url,
+      merchantId,
+    },
+  });
 
-    console.log(`[Import] Successfully scraped: "${scraped.title}" via ${scraped.provider}`);
+  console.log(`[Import] Queued scrape job for product ${product.id}`);
 
-    // Prepare product data
-    let titleEn = scraped.title;
-    let descriptionEn = scraped.description || null;
-    let titleAr: string | null = null;
-    let descriptionAr: string | null = null;
-    let productStatus: "IMPORTED" | "ENHANCED" = "IMPORTED";
-    let aiMetadata: Record<string, unknown> = {};
-
-    // AI Enhancement (if Gemini is configured)
-    if (isGeminiConfigured()) {
-      try {
-        console.log(`[Import] Starting AI enhancement with Gemini...`);
-        const gemini = getGeminiProvider();
-
-        const enhanced = await gemini.enhanceProduct({
-          title: scraped.title,
-          description: scraped.description || "",
-          price: scraped.price,
-          currency: scraped.currency,
-          images: scraped.images,
-          brand: scraped.brand,
-          specifications: scraped.specifications,
-          reviewSummary: scraped.reviewSummary,
-          seller: scraped.seller,
-          platform: scraped.platform,
-          sourceUrl: url,
-        });
-
-        console.log(`[Import] AI enhancement complete: "${enhanced.title.slice(0, 50)}..."`);
-
-        // Use AI-enhanced content
-        titleEn = enhanced.title;
-        descriptionEn = enhanced.description;
-        productStatus = "ENHANCED";
-        aiMetadata = {
-          aiProvider: enhanced.provider,
-          aiGeneratedAt: enhanced.generatedAt.toISOString(),
-          highlights: enhanced.highlights,
-          originalTitle: scraped.title,
-          originalDescription: scraped.description,
-        };
-      } catch (aiError) {
-        // AI enhancement failed, but we still have scraped data
-        console.error(`[Import] AI enhancement failed:`, aiError);
-        console.log(`[Import] Continuing with scraped data only`);
-      }
-
-      // Translate to KSA-style Arabic if Arabic is selected
-      if (contentLang === "ar" && titleEn) {
-        try {
-          console.log(`[Import] Translating to KSA-style Arabic...`);
-          const arabicContent = await translateToArabic({
-            title: titleEn,
-            description: descriptionEn || "",
-            highlights: aiMetadata.highlights as string[] | undefined,
-          });
-
-          titleAr = arabicContent.titleAr;
-          descriptionAr = arabicContent.descriptionAr;
-          aiMetadata.highlightsAr = arabicContent.highlightsAr;
-
-          console.log(`[Import] Arabic translation complete: "${titleAr?.slice(0, 40)}..."`);
-        } catch (translateError) {
-          console.error(`[Import] Arabic translation failed:`, translateError);
-          // Continue without Arabic translation
-        }
-      }
-    } else {
-      console.log(`[Import] Gemini not configured, skipping AI enhancement`);
-    }
-
-    // Save to database
-    const product = await db.product.create({
-      data: {
-        merchantId,
-        sourceUrl: url,
-        platform: platform.toUpperCase() as "ALIEXPRESS" | "AMAZON",
-        titleEn,
-        titleAr,
-        descriptionEn,
-        descriptionAr,
-        price: scraped.price,
-        currency: scraped.currency,
-        images: scraped.images,
-        status: productStatus,
-        contentLang,
-        // Store additional metadata as JSON if available
-        metadata: JSON.parse(JSON.stringify({
-          scrapedAt: scraped.scrapedAt.toISOString(),
-          provider: scraped.provider,
-          brand: scraped.brand,
-          sku: scraped.sku,
-          reviewSummary: scraped.reviewSummary,
-          seller: scraped.seller,
-          ...aiMetadata,
-        })),
-      },
-    });
-
-    return redirect(`/products/${product.id}`);
-
-  } catch (error) {
-    console.error("Scraping error:", error);
-
-    const errorMessage = error instanceof Error ? error.message : String(error);
-
-    // Provide more specific error messages
-    let userMessage = "فشل في استيراد المنتج. يرجى التأكد من صحة الرابط والمحاولة مرة أخرى.";
-
-    if (errorMessage.includes("No title")) {
-      userMessage = "لم يتم العثور على بيانات المنتج. تأكد من أن الرابط يشير إلى صفحة منتج صحيحة.";
-    } else if (errorMessage.includes("No images")) {
-      userMessage = "لم يتم العثور على صور للمنتج. جرب رابط منتج آخر.";
-    } else if (errorMessage.includes("timed out")) {
-      userMessage = "انتهت مهلة الاتصال. يرجى المحاولة مرة أخرى لاحقاً.";
-    } else if (errorMessage.includes("All scraping providers failed")) {
-      userMessage = "فشلت جميع محاولات الاستيراد. يرجى المحاولة لاحقاً أو جرب رابط منتج آخر.";
-    }
-
-    return data({ error: userMessage, details: errorMessage }, { status: 500 });
-  }
+  // Redirect to status page for polling
+  return redirect(`/import/status/${product.id}`);
 }
 
 interface ActionData {
