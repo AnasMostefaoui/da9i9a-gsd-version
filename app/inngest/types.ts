@@ -13,12 +13,27 @@ export type Events = {
       merchantId: string;
     };
   };
-  // Future events for scraping, AI processing
+  // Product scraping events
   "product/scrape.requested": {
     data: {
       productId: string;
       sourceUrl: string;
       merchantId: string;
+    };
+  };
+  "product/scrape.completed": {
+    data: {
+      productId: string;
+      success: boolean;
+      provider: string;
+      duration: number;
+    };
+  };
+  "product/scrape.failed": {
+    data: {
+      productId: string;
+      error: string;
+      duration: number;
     };
   };
 };
