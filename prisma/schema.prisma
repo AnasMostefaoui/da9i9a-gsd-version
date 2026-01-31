@@ -68,7 +68,28 @@ model Product {
   sallaProductId  Int?      @map("salla_product_id")
   pushedAt        DateTime? @map("pushed_at")
 
-  // Additional metadata (scraping info, brand, SKU, etc.)
+  // Additional metadata (scraping info, brand, SKU, cost tracking, etc.)
+  // Expected structure:
+  // {
+  //   scrapedAt: string,           // ISO timestamp when scraped
+  //   provider: string,            // Scraping provider used (e.g., "apify", "oxylabs")
+  //   scrapeDuration: number,      // Scrape duration in milliseconds
+  //   brand?: string,
+  //   sku?: string,
+  //   reviewSummary?: { rating: number, count: number },
+  //   seller?: { name: string, rating?: number },
+  //   scrapeCost?: {
+  //     provider: string,          // Provider that performed the scrape
+  //     platform: string,          // Target platform (aliexpress, amazon)
+  //     estimatedCostUsd: number,  // Estimated cost in USD
+  //     scrapedAt: string,         // ISO timestamp
+  //     duration: number           // Duration in milliseconds
+  //   },
+  //   aiProvider?: string,         // AI provider used for enhancement
+  //   aiGeneratedAt?: string,      // When AI content was generated
+  //   highlights?: string[],       // AI-generated highlights (English)
+  //   highlightsAr?: string[]      // AI-generated highlights (Arabic)
+  // }
   metadata        Json?     @default("{}")
 
   // Landing page content (AI-generated JSON for template rendering)
