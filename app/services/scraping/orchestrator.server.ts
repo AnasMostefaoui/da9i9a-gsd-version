@@ -23,6 +23,10 @@ import {
   createCostMetadata,
   type ScrapeCostMetadata,
 } from "./cost-tracker.server";
+import {
+  analyzeProductImage,
+  isVisionConfigured,
+} from "~/services/ai/vision.server";
 
 interface ProviderCredentials {
   apify?: {
@@ -147,8 +151,34 @@ export class ScrapingOrchestrator {
             `[Orchestrator] ✓ Success with ${providerName} in ${duration}ms`
           );
 
-          // Validate the result
-          this.validateProduct(product);
+          // Validate the result - may throw if critical data missing
+          const validationResult = this.validateProduct(product);
+
+          // Check if AI vision fallback is needed (title missing but images exist)
+          if (validationResult.needsVisionFallback) {
+            console.log("[Orchestrator] Text scraping incomplete, attempting AI vision fallback...");
+
+            if (isVisionConfigured() && product.images.length > 0) {
+              try {
+                const visionResult = await analyzeProductImage(product.images[0], platform);
+                product.title = visionResult.title;
+                product.description = visionResult.description || product.description;
+                product.provider = `${product.provider}+vision`; // Track hybrid source
+                product.aiGenerated = true; // Mark as AI-generated
+                console.log(`[Orchestrator] AI vision generated: "${product.title}"`);
+              } catch (visionError) {
+                const visionErrorMsg = visionError instanceof Error ? visionError.message : String(visionError);
+                console.error("[Orchestrator] AI vision fallback failed:", visionErrorMsg);
+                // Re-throw original validation error - we truly have no title
+                throw new Error(`Failed to scrape product text and AI vision fallback failed: ${visionErrorMsg}`);
+              }
+            } else if (!isVisionConfigured()) {
+              console.warn("[Orchestrator] AI vision not configured (GEMINI_API_KEY missing)");
+              throw new Error("Failed to scrape product title and AI vision is not configured");
+            } else {
+              throw new Error("Failed to scrape product title and no images available for AI fallback");
+            }
+          }
 
           // Attach cost metadata for subscription enforcement
           const costMetadata = createCostMetadata(
@@ -216,16 +246,15 @@ export class ScrapingOrchestrator {
   }
 
   /**
-   * Validate that scraped product has required fields
+   * Validation result indicating whether AI vision fallback is needed
    */
-  private validateProduct(product: ScrapedProduct): void {
+  private validateProduct(product: ScrapedProduct): { needsVisionFallback: boolean } {
     const errors: string[] = [];
+    const missingTitle = !product.title || product.title.trim().length === 0;
+    const hasImages = product.images && product.images.length > 0;
 
-    if (!product.title || product.title.trim().length === 0) {
-      errors.push("Missing title");
-    }
-
-    if (!product.images || product.images.length === 0) {
+    // Images are always required - no fallback possible without them
+    if (!hasImages) {
       errors.push("Missing images");
     }
 
@@ -240,9 +269,18 @@ export class ScrapingOrchestrator {
       );
     }
 
+    // Throw for critical errors (no images, invalid price)
     if (errors.length > 0) {
       throw new Error(`Invalid product data: ${errors.join(", ")}`);
     }
+
+    // If title is missing but we have images, indicate vision fallback is needed
+    if (missingTitle && hasImages) {
+      console.log("[Orchestrator] Product missing title but has images - vision fallback candidate");
+      return { needsVisionFallback: true };
+    }
+
+    return { needsVisionFallback: false };
   }
 
   private sleep(ms: number): Promise<void> {

@@ -38,6 +38,9 @@ export interface ScrapedProduct {
   scrapedAt: Date;
   provider: string;
 
+  // AI-generated content flag (true when vision fallback was used)
+  aiGenerated?: boolean;
+
   // Cost tracking metadata (attached by orchestrator)
   costMetadata?: ScrapeCostMetadata;
 }
