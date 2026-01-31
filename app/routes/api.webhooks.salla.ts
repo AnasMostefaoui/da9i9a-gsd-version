@@ -1,9 +1,11 @@
 /**
  * Salla Webhooks Handler
  *
- * Handles webhook events from Salla:
- * - app.installed: Merchant installed the app
- * - app.uninstalled: Merchant uninstalled the app
+ * Handles webhook events from Salla by:
+ * 1. Verifying signature
+ * 2. Storing in WebhookHistory for audit
+ * 3. Queueing to Inngest for async processing
+ * 4. Returning 200 immediately (non-blocking)
  *
  * POST /api/webhooks/salla
  *
@@ -13,23 +15,22 @@
 import type { ActionFunctionArgs } from "react-router";
 import { createHmac, timingSafeEqual } from "crypto";
 import { db } from "~/lib/db.server";
+import { inngest } from "~/inngest/client";
 
-// Webhook event types
-type SallaWebhookEvent = "app.installed" | "app.uninstalled" | "app.store.authorize";
+// Webhook event types (all events we care about)
+type SallaWebhookEvent =
+  | "app.installed"
+  | "app.uninstalled"
+  | "app.store.authorize"
+  | "app.trial.expired"
+  | "app.subscription.expired"
+  | "store.updated";
 
 interface SallaWebhookPayload {
-  event: SallaWebhookEvent;
+  event: string; // Using string to accept any event
   merchant: number; // Salla merchant ID
   created_at: string;
-  data: {
-    id: number;
-    app_name: string;
-    app_type?: string;
-    installation_date?: string;
-    uninstallation_date?: string;
-    store_type?: string;
-    [key: string]: unknown;
-  };
+  data: Record<string, unknown>;
 }
 
 /**
@@ -93,60 +94,51 @@ export async function action({ request }: ActionFunctionArgs) {
 
   console.log(`[Webhook] Received event: ${event} for merchant: ${sallaId}`);
 
-  switch (event) {
-    case "app.installed": {
-      // Merchant installed the app
-      // The OAuth flow should have already created the merchant record
-      // This webhook confirms the installation
-      await db.merchant.updateMany({
-        where: { sallaId },
-        data: {
-          status: "ACTIVE",
-          uninstalledAt: null,
-        },
-      });
+  // Step 1: Store in webhook history FIRST (before any processing)
+  const webhookHistory = await db.webhookHistory.create({
+    data: {
+      merchantSallaId: sallaId,
+      event,
+      payload: JSON.parse(JSON.stringify(payload)), // Ensure proper JSON serialization for Prisma
+      status: "RECEIVED",
+    },
+  });
 
-      console.log(`[Webhook] Merchant ${sallaId} marked as ACTIVE`);
-      break;
-    }
+  console.log(`[Webhook] Stored in history: ${webhookHistory.id}`);
 
-    case "app.uninstalled": {
-      // Merchant uninstalled the app
-      // Mark as uninstalled but keep data for potential re-installation
-      const uninstallDate = data.uninstallation_date
-        ? new Date(data.uninstallation_date)
-        : new Date();
-
-      await db.merchant.updateMany({
-        where: { sallaId },
-        data: {
-          status: "UNINSTALLED",
-          uninstalledAt: uninstallDate,
-        },
-      });
-
-      console.log(`[Webhook] Merchant ${sallaId} marked as UNINSTALLED`);
-
-      // Note: Data retention policy (DELETE_AFTER_30_DAYS vs KEEP_FOREVER)
-      // should be handled by a scheduled job, not here
-      break;
-    }
-
-    case "app.store.authorize": {
-      // This event fires when merchant first authorizes the app
-      // The OAuth callback should handle token storage
-      // This is informational only
-      console.log(`[Webhook] Merchant ${sallaId} authorized app`);
-      break;
-    }
-
-    default: {
-      // Unknown event - log but don't fail
-      console.log(`[Webhook] Unhandled event: ${event}`);
-    }
+  // Step 2: Queue to Inngest for async processing
+  // This returns immediately - processing happens in background
+  try {
+    await inngest.send({
+      name: "app/webhook.received",
+      data: {
+        event,
+        merchantSallaId: sallaId,
+        payload: data,
+        webhookHistoryId: webhookHistory.id,
+      },
+    });
+    console.log(`[Webhook] Queued to Inngest: ${webhookHistory.id}`);
+  } catch (error) {
+    // Log but don't fail - we already stored in history
+    console.error("[Webhook] Failed to queue to Inngest:", error);
+    // Mark as failed in history since we couldn't queue it
+    await db.webhookHistory.update({
+      where: { id: webhookHistory.id },
+      data: {
+        status: "FAILED",
+        error: error instanceof Error ? error.message : "Failed to queue to Inngest",
+        processedAt: new Date(),
+      },
+    });
   }
 
-  // Always return 200 to acknowledge receipt
+  // Always return 200 immediately to acknowledge receipt
   // Salla will retry 3 times if it doesn't get a 200
-  return Response.json({ success: true, event });
+  // Actual processing happens async in Inngest
+  return Response.json({
+    success: true,
+    event,
+    webhookHistoryId: webhookHistory.id,
+  });
 }
