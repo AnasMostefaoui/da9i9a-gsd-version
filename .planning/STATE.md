@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 ## Current Position
 
 Phase: 2 of 6 (Product Scraping)
-Plan: 2 of 3 in current phase (gap closure plans)
-Status: In progress
-Last activity: 2026-01-31 - Completed 02-02-PLAN.md (AI vision fallback)
+Plan: 3 of 3 in current phase
+Status: Complete
+Last activity: 2026-01-31 - Completed 02-01-PLAN.md (async scraping via Inngest)
 
-Progress: [████████░░] ~87% (Phase 2 gap closure)
+Progress: [██████████] 100% (Phase 2)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 4
-- Average duration: 3.5 min
-- Total execution time: 0.23 hours
+- Total plans completed: 5
+- Average duration: 4 min
+- Total execution time: 0.35 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 2 | 9 min | 4.5 min |
-| 2 | 2 | 6 min | 3 min |
+| 2 | 3 | 13 min | 4.3 min |
 
 **Recent Trend:**
-- Last 5 plans: 5 min, 4 min, 2 min, 4 min
+- Last 5 plans: 5 min, 4 min, 2 min, 4 min, 7 min
 - Trend: Consistent
 
 *Updated after each plan completion*
@@ -56,6 +56,8 @@ Recent decisions affecting current work:
 - 02-03: Cost estimates based on provider pricing tiers (~$15-25 per 1000 requests)
 - 02-03: Compound providers (apify+vision) sum component costs
 - 02-03: Cost metadata stored in Product.metadata.scrapeCost JSON field
+- 02-01: Store-then-queue pattern for async scraping (create product, then queue Inngest job)
+- 02-01: Separate polling page for cleaner separation of concerns
 
 ### Pending Todos
 
@@ -71,10 +73,10 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-31T20:11:44Z
-Stopped at: Completed 02-02-PLAN.md (AI vision fallback)
+Last session: 2026-01-31T20:14:16Z
+Stopped at: Completed 02-01-PLAN.md (async scraping via Inngest)
 Resume file: None
 
 ---
 
-**Next action:** Continue Phase 2 gap closure (plan 01 remaining) or verify Phase 2 completion
+**Next action:** Plan and execute Phase 3 (AI Enhancement)

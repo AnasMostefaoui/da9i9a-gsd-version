@@ -13,7 +13,7 @@ Salla Atlas transforms from zero to production-ready AI store builder in six pha
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Foundation** - Infrastructure, OAuth, and job queue system
-- [ ] **Phase 2: Product Scraping** - Extract product data from AliExpress and Amazon
+- [x] **Phase 2: Product Scraping** - Extract product data from AliExpress and Amazon
 - [ ] **Phase 3: AI Content & Images** - Generate descriptions, translations, and enhanced images
 - [ ] **Phase 4: Store Generation** - Deploy themes and landing pages to Salla
 - [ ] **Phase 5: Business & Billing** - Subscription system and merchant dashboard
@@ -49,9 +49,9 @@ Plans:
 **Plans**: 3 plans (gap closure)
 
 Plans:
-- [ ] 02-01-PLAN.md — Inngest async scraping with job status polling
-- [ ] 02-02-PLAN.md — AI-from-image fallback when text scraping fails
-- [ ] 02-03-PLAN.md — Cost tracking for subscription enforcement
+- [x] 02-01-PLAN.md — Inngest async scraping with job status polling (2026-01-31)
+- [x] 02-02-PLAN.md — AI-from-image fallback when text scraping fails (2026-01-31)
+- [x] 02-03-PLAN.md — Cost tracking for subscription enforcement (2026-01-31)
 
 ### Phase 3: AI Content & Images
 **Goal**: AI-generated content and enhanced images for products
@@ -134,7 +134,7 @@ See **FUTURE.md** for detailed architecture. Salla doesn't allow code injection 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete | 2026-01-31 |
-| 2. Product Scraping | 0/3 | In progress | - |
+| 2. Product Scraping | 3/3 | Complete | 2026-01-31 |
 | 3. AI Content & Images | 0/? | Not started | - |
 | 4. Store Generation | 0/? | Not started | - |
 | 5. Business & Billing | 0/? | Not started | - |
