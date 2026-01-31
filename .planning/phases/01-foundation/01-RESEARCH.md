@@ -1,7 +1,7 @@
 # Phase 1: Foundation - Research
 
 **Researched:** 2026-01-31
-**Domain:** Salla OAuth, Background Jobs (Inngest), Error Tracking, Webhook Handling
+**Domain:** Salla OAuth, Background Jobs (Inngest), Webhook Handling
 **Confidence:** HIGH
 
 ## Summary
@@ -10,11 +10,10 @@ This research focuses on what's MISSING or needs improvement in the existing Pha
 
 The key gaps requiring implementation are:
 1. **Inngest background job system** - Not set up at all (no inngest files found)
-2. **Error tracking** - No Sentry or similar service configured
-3. **Webhook improvements** - Missing app.expired handling, webhook history storage, and the store.updated event
-4. **Job status visibility** - UI components for showing job status (manual refresh per MVP philosophy)
+2. **Webhook improvements** - Missing app.expired handling, webhook history storage, and the store.updated event
+3. **Job status visibility** - UI components for showing job status (manual refresh per MVP philosophy)
 
-**Primary recommendation:** Set up Inngest with Remix handler pattern, add Sentry for error tracking, and extend webhook handling to cover all required events with history storage.
+**Primary recommendation:** Set up Inngest with Remix handler pattern and extend webhook handling to cover all required events with history storage. Error tracking deferred to future phase.
 
 ## Standard Stack
 
@@ -24,7 +23,6 @@ The established libraries/tools for this phase:
 | Library | Version | Purpose | Why Standard |
 |---------|---------|---------|--------------|
 | inngest | 3.49.3 | Background job queue | Zero-infra, durable execution, built-in retries, official Remix support |
-| @sentry/react | 10.33.0 | Error tracking | Industry standard, React 19 support, ErrorBoundary component |
 | exponential-backoff | 3.x | Retry logic | Simple API, jitter support, TypeScript native |
 
 ### Supporting
@@ -42,12 +40,11 @@ The established libraries/tools for this phase:
 | Instead of | Could Use | Tradeoff |
 |------------|-----------|----------|
 | Inngest | BullMQ + Redis | More infrastructure to manage, higher operational cost |
-| Sentry | LogRocket | Sentry better for errors, LogRocket better for session replay |
 | exponential-backoff | Custom implementation | Library handles edge cases (jitter, max delay) correctly |
 
 **Installation:**
 ```bash
-npm install inngest @sentry/react exponential-backoff
+npm install inngest exponential-backoff
 npm install -D inngest-cli
 ```
 
@@ -66,7 +63,6 @@ app/
 ├── routes/
 │   └── api.inngest.ts      # Inngest serve handler
 ├── lib/
-│   ├── sentry.client.ts    # Sentry browser init
 │   └── retry.server.ts     # Exponential backoff utility
 └── services/
     └── salla/              # Existing - no changes needed
