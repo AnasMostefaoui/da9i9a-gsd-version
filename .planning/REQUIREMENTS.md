@@ -108,10 +108,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | INFRA-01 | Phase 1 | Complete |
 | INFRA-02 | Phase 1 | Complete |
 | INFRA-04 | Phase 1 | Complete |
-| SCRAPE-01 | Phase 2 | Pending |
-| SCRAPE-02 | Phase 2 | Pending |
-| SCRAPE-03 | Phase 2 | Pending |
-| SCRAPE-04 | Phase 2 | Pending |
+| SCRAPE-01 | Phase 2 | Complete |
+| SCRAPE-02 | Phase 2 | Complete |
+| SCRAPE-03 | Phase 2 | Complete |
+| SCRAPE-04 | Phase 2 | Complete |
 | AI-01 | Phase 3 | Pending |
 | AI-02 | Phase 3 | Pending |
 | AI-03 | Phase 3 | Pending |
