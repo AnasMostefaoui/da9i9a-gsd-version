@@ -91,6 +91,9 @@ export const scrapeProduct = inngest.createFunction(
               sku: scraped.sku,
               reviewSummary: scraped.reviewSummary,
               seller: scraped.seller,
+              // Cost tracking for subscription tier enforcement (Phase 5)
+              scrapeCost: scraped.costMetadata,
+              aiGenerated: scraped.aiGenerated,
             })),
           },
         });
