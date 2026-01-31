@@ -95,3 +95,27 @@ enum ProductStatus {
   PUSHED       // Live on Salla
   FAILED       // Something went wrong
 }
+
+// Webhook event history for debugging and audit
+model WebhookHistory {
+  id              String    @id @default(cuid())
+  merchantSallaId Int       @map("merchant_salla_id")
+  event           String
+  payload         Json
+  status          WebhookStatus @default(RECEIVED)
+  processedAt     DateTime?     @map("processed_at")
+  error           String?
+  receivedAt      DateTime  @default(now()) @map("received_at")
+
+  @@index([merchantSallaId])
+  @@index([event])
+  @@index([receivedAt])
+  @@map("webhook_history")
+}
+
+enum WebhookStatus {
+  RECEIVED    // Received but not yet processed
+  PROCESSING  // Currently being processed by Inngest
+  PROCESSED   // Successfully processed
+  FAILED      // Processing failed
+}
