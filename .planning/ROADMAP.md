@@ -38,7 +38,7 @@ Plans:
 - [x] 01-02-PLAN.md — Extended webhook handling with history and Inngest queueing (2026-01-31)
 
 ### Phase 2: Product Scraping
-**Goal**: Reliable product data extraction from AliExpress and Amazon
+**Goal**: Reliable product data extraction with async processing and fallback strategies
 **Depends on**: Phase 1
 **Requirements**: SCRAPE-01, SCRAPE-02, SCRAPE-03, SCRAPE-04
 **Success Criteria** (what must be TRUE):
@@ -46,10 +46,12 @@ Plans:
   2. Merchant can paste Amazon link and see product data preview
   3. Scraping completes within 2-4 minutes without rate limit failures
   4. Failed scraping jobs retry automatically and succeed on subsequent attempts
-**Plans**: TBD
+**Plans**: 3 plans (gap closure)
 
 Plans:
-- [ ] 02-01: [TBD during plan-phase]
+- [ ] 02-01-PLAN.md — Inngest async scraping with job status polling
+- [ ] 02-02-PLAN.md — AI-from-image fallback when text scraping fails
+- [ ] 02-03-PLAN.md — Cost tracking for subscription enforcement
 
 ### Phase 3: AI Content & Images
 **Goal**: AI-generated content and enhanced images for products
@@ -132,7 +134,7 @@ See **FUTURE.md** for detailed architecture. Salla doesn't allow code injection 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Foundation | 2/2 | Complete | 2026-01-31 |
-| 2. Product Scraping | 0/? | Not started | - |
+| 2. Product Scraping | 0/3 | In progress | - |
 | 3. AI Content & Images | 0/? | Not started | - |
 | 4. Store Generation | 0/? | Not started | - |
 | 5. Business & Billing | 0/? | Not started | - |
