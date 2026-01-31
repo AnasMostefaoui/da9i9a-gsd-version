@@ -26,7 +26,23 @@ export async function loader({ request }: LoaderFunctionArgs) {
 
   // DA9I9A Widget Configuration
   const DA9I9A_API = '${apiOrigin}';
-  const WIDGET_VERSION = '1.0.0';
+  const WIDGET_VERSION = '1.1.0';
+
+  // Salla Cart Integration
+  // Uses Salla's Twilight JS SDK: https://docs.salla.dev/doc-422610
+  function initSallaEvents() {
+    if (typeof salla === 'undefined' || !salla.cart) return;
+
+    // Listen for successful add to cart
+    salla.cart.event.onItemAdded((response, productId) => {
+      console.log('[DA9I9A] Item added to cart:', productId, response);
+    });
+
+    // Listen for add to cart failures
+    salla.cart.event.onItemAddedFailed((errorMessage) => {
+      console.error('[DA9I9A] Add to cart failed:', errorMessage);
+    });
+  }
 
   // Styles for the landing page sections (using CSS custom properties for colors)
   const STYLES = \`
@@ -170,6 +186,39 @@ export async function loader({ request }: LoaderFunctionArgs) {
       font-weight: 700;
       cursor: pointer;
       box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+      transition: all 0.2s ease;
+      min-width: 160px;
+    }
+    .da9i9a-cta-btn:hover:not(:disabled) {
+      transform: scale(1.05);
+    }
+    .da9i9a-cta-btn:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+    .da9i9a-cta-btn.loading {
+      position: relative;
+      color: transparent;
+    }
+    .da9i9a-cta-btn.loading::after {
+      content: '';
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      top: 50%;
+      left: 50%;
+      margin: -10px 0 0 -10px;
+      border: 2px solid var(--da-primary);
+      border-top-color: transparent;
+      border-radius: 50%;
+      animation: da9i9a-spin 0.8s linear infinite;
+    }
+    .da9i9a-cta-btn.success {
+      background: #22c55e;
+      color: white;
+    }
+    @keyframes da9i9a-spin {
+      to { transform: rotate(360deg); }
     }
     .da9i9a-stats {
       background: #f9fafb;
@@ -458,10 +507,54 @@ export async function loader({ request }: LoaderFunctionArgs) {
       cta.appendChild(createElement('h3', '', content.cta.headline));
       cta.appendChild(createElement('p', '', content.cta.description));
       const btn = createElement('button', 'da9i9a-cta-btn', content.cta.buttonText);
-      btn.onclick = () => {
-        const addToCartBtn = document.querySelector('[data-add-to-cart], .add-to-cart, button[type="submit"]');
-        if (addToCartBtn) addToCartBtn.click();
+      const originalText = content.cta.buttonText;
+      const successText = isArabic ? 'تمت الإضافة ✓' : 'Added ✓';
+
+      btn.onclick = async () => {
+        // Check if Salla SDK is available
+        if (typeof salla === 'undefined' || !salla.cart) {
+          console.error('[DA9I9A] Salla SDK not available');
+          // Fallback to clicking existing button
+          const fallbackBtn = document.querySelector('[data-add-to-cart], .add-to-cart, button[type="submit"]');
+          if (fallbackBtn) fallbackBtn.click();
+          return;
+        }
+
+        // Disable and show loading
+        btn.disabled = true;
+        btn.classList.add('loading');
+
+        try {
+          await salla.cart.addItem({
+            id: data.productId,
+            quantity: 1
+          });
+
+          // Success state
+          btn.classList.remove('loading');
+          btn.classList.add('success');
+          btn.textContent = successText;
+
+          // Reset after 2 seconds
+          setTimeout(() => {
+            btn.classList.remove('success');
+            btn.textContent = originalText;
+            btn.disabled = false;
+          }, 2000);
+
+        } catch (error) {
+          console.error('[DA9I9A] Add to cart failed:', error);
+          btn.classList.remove('loading');
+          btn.disabled = false;
+
+          // Show error briefly
+          btn.textContent = isArabic ? 'حدث خطأ' : 'Error';
+          setTimeout(() => {
+            btn.textContent = originalText;
+          }, 2000);
+        }
       };
+
       cta.appendChild(btn);
       container.appendChild(cta);
     }
@@ -567,6 +660,9 @@ export async function loader({ request }: LoaderFunctionArgs) {
   // Main initialization
   async function init() {
     console.log('[DA9I9A] Widget v' + WIDGET_VERSION + ' initializing...');
+
+    // Initialize Salla event listeners
+    initSallaEvents();
 
     const productId = getProductId();
     if (!productId) {
