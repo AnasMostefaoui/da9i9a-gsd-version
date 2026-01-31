@@ -102,12 +102,12 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| SALLA-01 | Phase 1 | Pending |
-| SALLA-02 | Phase 1 | Pending |
-| SALLA-04 | Phase 1 | Pending |
-| INFRA-01 | Phase 1 | Pending |
-| INFRA-02 | Phase 1 | Pending |
-| INFRA-04 | Phase 1 | Pending |
+| SALLA-01 | Phase 1 | Complete |
+| SALLA-02 | Phase 1 | Complete |
+| SALLA-04 | Phase 1 | Complete |
+| INFRA-01 | Phase 1 | Complete |
+| INFRA-02 | Phase 1 | Complete |
+| INFRA-04 | Phase 1 | Complete |
 | SCRAPE-01 | Phase 2 | Pending |
 | SCRAPE-02 | Phase 2 | Pending |
 | SCRAPE-03 | Phase 2 | Pending |

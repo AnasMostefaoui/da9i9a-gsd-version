@@ -12,7 +12,7 @@ Salla Atlas transforms from zero to production-ready AI store builder in six pha
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Foundation** - Infrastructure, OAuth, and job queue system
+- [x] **Phase 1: Foundation** - Infrastructure, OAuth, and job queue system
 - [ ] **Phase 2: Product Scraping** - Extract product data from AliExpress and Amazon
 - [ ] **Phase 3: AI Content & Images** - Generate descriptions, translations, and enhanced images
 - [ ] **Phase 4: Store Generation** - Deploy themes and landing pages to Salla
@@ -31,12 +31,11 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Jobs queue reliably and process asynchronously
   4. Merchant data persists correctly across sessions
   5. Webhook events are received and processed
-**Plans**: 3 plans
+**Plans**: 2 plans
 
 Plans:
 - [x] 01-01-PLAN.md — Inngest setup with typed events and retry utility (2026-01-31)
-- [ ] 01-02-PLAN.md — Sentry error tracking for client and server
-- [ ] 01-03-PLAN.md — Extended webhook handling with history and Inngest queueing
+- [x] 01-02-PLAN.md — Extended webhook handling with history and Inngest queueing (2026-01-31)
 
 ### Phase 2: Product Scraping
 **Goal**: Reliable product data extraction from AliExpress and Amazon
@@ -132,7 +131,7 @@ See **FUTURE.md** for detailed architecture. Salla doesn't allow code injection 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 1/3 | In progress | - |
+| 1. Foundation | 2/2 | Complete | 2026-01-31 |
 | 2. Product Scraping | 0/? | Not started | - |
 | 3. AI Content & Images | 0/? | Not started | - |
 | 4. Store Generation | 0/? | Not started | - |
