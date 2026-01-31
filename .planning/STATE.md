@@ -5,32 +5,33 @@
 See: .planning/PROJECT.md (updated 2026-01-21)
 
 **Core value:** Paste a product link, get a complete Salla store ready to sell
-**Current focus:** Phase 1 - Foundation
+**Current focus:** Phase 2 - Product Scraping
 
 ## Current Position
 
-Phase: 1 of 6 (Foundation) ✓ COMPLETE
-Plan: 2 of 2 in current phase
-Status: Complete
-Last activity: 2026-01-31 - Phase 1 verified and complete
+Phase: 2 of 6 (Product Scraping)
+Plan: 3 of 3 in current phase (gap closure plans)
+Status: In progress
+Last activity: 2026-01-31 - Completed 02-03-PLAN.md (cost tracking)
 
-Progress: [██████████] 100% (Phase 1)
+Progress: [████████░░] ~80% (Phase 2 gap closure)
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 2
-- Average duration: 4.5 min
-- Total execution time: 0.15 hours
+- Total plans completed: 3
+- Average duration: 3.7 min
+- Total execution time: 0.18 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
 | 1 | 2 | 9 min | 4.5 min |
+| 2 | 1 | 2 min | 2 min |
 
 **Recent Trend:**
-- Last 5 plans: 5 min, 4 min
+- Last 5 plans: 5 min, 4 min, 2 min
 - Trend: Improving
 
 *Updated after each plan completion*
@@ -49,6 +50,9 @@ Recent decisions affecting current work:
 - 01-01: Three retry presets for Salla API, scrapers, and AI APIs
 - 01-02: Store-then-queue pattern for webhooks (history first, then Inngest)
 - 01-02: Non-blocking webhook handler returns 200 immediately
+- 02-03: Cost estimates based on provider pricing tiers (~$15-25 per 1000 requests)
+- 02-03: Compound providers (apify+vision) sum component costs
+- 02-03: Cost metadata stored in Product.metadata.scrapeCost JSON field
 
 ### Pending Todos
 
@@ -64,10 +68,10 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-31T19:06:09Z
-Stopped at: Phase 1 complete, verification passed
+Last session: 2026-01-31T20:09:53Z
+Stopped at: Completed 02-03-PLAN.md (cost tracking)
 Resume file: None
 
 ---
 
-**Next action:** Plan and execute Phase 2 (Product Scraping)
+**Next action:** Continue Phase 2 gap closure (plans 01, 02 if not complete) or verify Phase 2 completion
