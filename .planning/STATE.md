@@ -10,28 +10,28 @@ See: .planning/PROJECT.md (updated 2026-01-21)
 ## Current Position
 
 Phase: 1 of 6 (Foundation)
-Plan: 1 of 3 in current phase
+Plan: 2 of 3 in current phase
 Status: In progress
-Last activity: 2026-01-31 - Completed 01-01-PLAN.md (Inngest infrastructure)
+Last activity: 2026-01-31 - Completed 01-02-PLAN.md (Webhook history and Inngest processing)
 
-Progress: [█░░░░░░░░░] 10%
+Progress: [██░░░░░░░░] 20%
 
 ## Performance Metrics
 
 **Velocity:**
-- Total plans completed: 1
-- Average duration: 5 min
-- Total execution time: 0.1 hours
+- Total plans completed: 2
+- Average duration: 4.5 min
+- Total execution time: 0.15 hours
 
 **By Phase:**
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| 1 | 1 | 5 min | 5 min |
+| 1 | 2 | 9 min | 4.5 min |
 
 **Recent Trend:**
-- Last 5 plans: 5 min
-- Trend: Starting
+- Last 5 plans: 5 min, 4 min
+- Trend: Improving
 
 *Updated after each plan completion*
 
@@ -47,6 +47,8 @@ Recent decisions affecting current work:
 - Phase 1 critical: Budget monitoring from day one (AI costs can explode without controls)
 - 01-01: Used inngest/remix adapter for React Router 7 compatibility
 - 01-01: Three retry presets for Salla API, scrapers, and AI APIs
+- 01-02: Store-then-queue pattern for webhooks (history first, then Inngest)
+- 01-02: Non-blocking webhook handler returns 200 immediately
 
 ### Pending Todos
 
@@ -62,10 +64,10 @@ None yet.
 
 ## Session Continuity
 
-Last session: 2026-01-31T18:59:39Z
-Stopped at: Completed 01-01-PLAN.md (Inngest infrastructure)
+Last session: 2026-01-31T19:06:09Z
+Stopped at: Completed 01-02-PLAN.md (Webhook history and Inngest processing)
 Resume file: None
 
 ---
 
-**Next action:** Execute 01-02-PLAN.md (Sentry error tracking)
+**Next action:** Execute 01-03-PLAN.md (OAuth token refresh with mutex)
