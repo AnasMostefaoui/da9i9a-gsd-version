@@ -1,7 +1,8 @@
 # Phase 2: Product Scraping - Context
 
 **Gathered:** 2026-01-22
-**Status:** Ready for planning
+**Updated:** 2026-01-31 (aligned with actual implementation)
+**Status:** Partially implemented, gaps identified
 
 <domain>
 ## Phase Boundary
@@ -12,132 +13,123 @@ Reliable product data extraction from AliExpress and Amazon URLs. This phase del
 - Data validation and quality checks
 - Fallback to AI-from-image when text scraping fails
 - Scraper abstraction layer for provider swapping
+- Async scraping via Inngest for reliability
 
 Creating products in Salla, AI content generation, and image enhancement are separate phases.
 
 </domain>
 
-<critical_constraint>
-## MVP Philosophy (inherited from Phase 1)
+<implementation_status>
+## What's Already Built
 
-- **Ship fast, iterate later**
-- **Target scale:** 1000-5000 paying users
-- **Budget:** $200/month total — scraping costs passed to merchant via subscription tiers
-- **Don't over-engineer** — simple solutions over elegant ones
+### Complete (Production-Ready)
 
-</critical_constraint>
+| Component | Location | Status |
+|-----------|----------|--------|
+| **Apify provider** | `app/services/scraping/apify.server.ts` | ✓ Complete |
+| **Oxylabs provider** | `app/services/scraping/oxylabs.server.ts` | ✓ Complete |
+| **Orchestrator** | `app/services/scraping/orchestrator.server.ts` | ✓ Complete |
+| **URL validation** | `app/services/scraping/types.ts` | ✓ Complete |
+| **Import route** | `app/routes/import.tsx` | ✓ Complete |
+| **Caching** | `.cache/apify/` with 30-min TTL | ✓ Complete |
+| **Database storage** | Product model with metadata JSON | ✓ Complete |
+
+### Provider Chains (Actual Implementation)
+
+| Platform | Primary | Fallback |
+|----------|---------|----------|
+| **AliExpress** | Apify | Oxylabs |
+| **Amazon** | Oxylabs | Apify |
+
+### Gaps to Close
+
+| Gap | Priority | Reason |
+|-----|----------|--------|
+| **Inngest async scraping** | HIGH | Long-running scrapes block UI, no retries |
+| **Cost tracking** | MEDIUM | Can't enforce subscription limits |
+| **AI-from-image fallback** | MEDIUM | When scraping fails but has images |
+
+</implementation_status>
 
 <decisions>
 ## Implementation Decisions
 
-### Provider Strategy
+### Provider Strategy (LOCKED - already implemented)
 
-**Multi-provider approach with fallbacks:**
+- **Apify** as primary for AliExpress (handles JS-heavy pages well)
+- **Oxylabs** as primary for Amazon (structured data API)
+- Automatic fallback to secondary provider on failure
+- ScraperAPI deprecated, kept as emergency fallback
 
-| Platform | Primary Provider | Fallback Provider |
-|----------|------------------|-------------------|
-| **Amazon** | Scrapingdog ($0.0002/req, 100% success, 3.5s) | ScraperAPI |
-| **AliExpress** | ScraperAPI ($0.00245/req, handles JS-heavy pages) | Oxylabs |
+### Data Requirements (LOCKED - already implemented)
 
-**Rationale:** Best tool for each platform. Primary optimized for cost/reliability, fallback ensures resilience.
-
-### Data Requirements
-
-**Essential (must have or job fails with warning):**
+**Essential (must have or job fails):**
 - Title
 - Images (minimum 1 required)
 - Price
-- Description
 
-**Nice-to-have (extract if available):**
+**Nice-to-have (extracted when available):**
+- Description
 - Variants (size, color, material)
 - Reviews summary
+- Seller info
+- Specifications
 
-### Validation Rules
+### Validation Rules (LOCKED - already implemented)
 
-- **Missing essential field:** Warn and continue (don't block import)
-- **No images:** Fail the job (minimum 1 image required)
-- **Partial data:** Import with warnings, let user fix manually
-- **Invalid URL:** Reject immediately with clear error message
+- **No images:** Fail the job
+- **No title:** Fail the job
+- **No price:** Fail the job
+- **Missing description:** Warn and continue
+- **Invalid URL:** Reject immediately
 
-### AI-from-Image Fallback
+### Inngest Integration (TO IMPLEMENT)
+
+- Use `product/scrape.requested` event (type already defined)
+- Queue scraping job when user submits URL
+- Return job ID immediately, poll for status
+- Retry on provider failures (exponential backoff)
+- Store result in database when complete
+
+### AI-from-Image Fallback (TO IMPLEMENT)
 
 **When scraping gets images but no text:**
 1. Send product image to Gemini Vision
 2. AI analyzes product visually
 3. Generates title + description from image analysis
 
-**User controls:**
-- Available as explicit option ("Generate from image")
-- Can use even when scraped text exists
-- User chooses between scraped text vs AI-generated
+**Trigger:** Only when primary AND fallback providers fail to get text
 
-### URL Handling
+### Cost Tracking (TO IMPLEMENT)
 
-- **Strict pattern matching** — only accept known AliExpress/Amazon URL formats
-- **Early rejection** — invalid URLs fail fast with clear feedback
-- **Platform detection** — determine provider from URL pattern
-
-### Caching Strategy
-
-- **User choice** in UI: "Use cached" vs "Refresh"
-- Cache scraped data for cost savings
-- Show cache timestamp so user knows data age
-
-### Retry Logic
-
-**Claude's discretion** — will implement based on cost/reliability tradeoff:
-- Likely: Retry primary 2-3x with backoff
-- Then: Switch to fallback provider
-- Finally: Fail with clear error if both providers fail
-
-### Abstraction Layer
-
-**Claude's discretion** — will implement appropriate pattern:
-- Interface defines: `scrape(url) → ProductData`
-- Adapters for each provider
-- Factory or strategy pattern for provider selection
-- Easy to add new providers later
-
-### Cost Management
-
-- **Costs passed to merchant** via subscription tiers
-- Track scraping costs per merchant
-- Subscription tier determines monthly product limit
-- Monitor total platform costs for budget health
-
-### Error Messages
-
-**Technical/precise style** (consistent with Phase 1):
-- "Scraping failed: AliExpress returned 403 Forbidden"
-- "Product not found at URL"
-- "Rate limit exceeded, retry in 60 seconds"
+- Track scraping cost per merchant
+- Store provider + cost in Product metadata
+- Aggregate for subscription tier enforcement (Phase 5)
 
 </decisions>
 
 <specifics>
 ## Specific Ideas
 
-- **Resilience is key:** "This is the ground that will hold us or break us"
-- Even partial scrape success should produce usable output
-- AI-from-image ensures we can always generate content if we have at least one image
-- User emphasized multi-provider approach for reliability
+- **Resilience is key:** Even partial scrape success should produce usable output
+- AI-from-image ensures content generation if we have at least one image
+- Current caching (30-min TTL) reduces costs for repeated URLs
 
-## Provider Research Summary
+## Environment Variables
 
-| Provider | Amazon | AliExpress | Cost/Request | Success | Speed |
-|----------|--------|------------|--------------|---------|-------|
-| Scrapingdog | ✓ 100% | ❓ | $0.0002 | 100% | 3.5s |
-| ScraperAPI | ✓ 99% | ✓ | $0.00245 | 93% | 9.6s |
-| Oxylabs | ✓ | ✓ | $0.00135 | 92% | 17.5s |
-| Apify | ✓ | ✓ | ~$0.007 | Good | Medium |
-| ScrapingBee | ✓ | ✓ | Varies | 93% | 11.7s |
+```bash
+# Primary providers (required)
+APIFY_TOKEN=                          # Apify API token
+OXYLABS_USERNAME=                     # Oxylabs credentials
+OXYLABS_PASSWORD=
 
-**Sources:**
-- [Scrapingdog benchmarks](https://www.scrapingdog.com/blog/best-amazon-scraping-apis/)
-- [ScraperAPI AliExpress](https://www.scraperapi.com/solutions/aliexpress-scraper/)
-- [Oxylabs AliExpress API](https://oxylabs.io/products/scraper-api/ecommerce/aliexpress)
-- [Apify Amazon Scraper](https://apify.com/junglee/amazon-crawler)
+# Optional overrides
+APIFY_ACTOR_ALIEXPRESS=apify/e-commerce-scraping-tool
+APIFY_ACTOR_AMAZON=junglee/amazon-crawler
+
+# Legacy (deprecated)
+SCRAPERAPI_KEY=                       # Emergency fallback only
+```
 
 </specifics>
 
@@ -145,9 +137,9 @@ Creating products in Salla, AI content generation, and image enhancement are sep
 ## Deferred Ideas
 
 - **Future platforms:** Temu, Shein, 1688 — add when demand proven
-- **Data quality scoring:** Detect spam/fake listings — future enhancement
 - **Bulk import:** Multiple URLs at once — v2 feature
-- **Scheduled re-scraping:** Price monitoring — different product
+- **Price monitoring:** Scheduled re-scraping — different product
+- **Provider config UI:** Let merchants choose preferred provider
 
 </deferred>
 
@@ -155,3 +147,4 @@ Creating products in Salla, AI content generation, and image enhancement are sep
 
 *Phase: 02-product-scraping*
 *Context gathered: 2026-01-22*
+*Updated: 2026-01-31*
