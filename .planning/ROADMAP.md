@@ -31,10 +31,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   3. Jobs queue reliably and process asynchronously
   4. Merchant data persists correctly across sessions
   5. Webhook events are received and processed
-**Plans**: TBD
+**Plans**: 3 plans
 
 Plans:
-- [ ] 01-01: [TBD during plan-phase]
+- [ ] 01-01-PLAN.md — Inngest setup with typed events and retry utility
+- [ ] 01-02-PLAN.md — Sentry error tracking for client and server
+- [ ] 01-03-PLAN.md — Extended webhook handling with history and Inngest queueing
 
 ### Phase 2: Product Scraping
 **Goal**: Reliable product data extraction from AliExpress and Amazon
@@ -130,7 +132,7 @@ See **FUTURE.md** for detailed architecture. Salla doesn't allow code injection 
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Foundation | 0/? | Not started | - |
+| 1. Foundation | 0/3 | Planning complete | - |
 | 2. Product Scraping | 0/? | Not started | - |
 | 3. AI Content & Images | 0/? | Not started | - |
 | 4. Store Generation | 0/? | Not started | - |
