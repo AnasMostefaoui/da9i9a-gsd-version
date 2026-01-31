@@ -4,9 +4,9 @@ import { redirect, data } from "react-router";
 import { useState } from "react";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
+import { getSallaClient } from "~/lib/token-refresh.server";
 import { getGeminiProvider, isGeminiConfigured, generateLandingPageContent, translateToArabic } from "~/services/ai";
 import type { LandingPageContent } from "~/services/ai/types";
-import { SallaClient } from "~/services/salla";
 import { LandingPagePreview } from "~/components/landing-page";
 import { COLOR_PALETTES, PALETTE_IDS, getPalette } from "~/lib/color-palettes";
 
@@ -165,29 +165,8 @@ export async function action({ request, params }: Route.ActionArgs) {
 
     case "push": {
       try {
-        // Check token expiry and refresh if needed
-        const merchant = product.merchant;
-        let accessToken = merchant.accessToken;
-
-        if (new Date() >= merchant.tokenExpiresAt) {
-          const newTokens = await SallaClient.refreshToken(
-            process.env.SALLA_CLIENT_ID!,
-            process.env.SALLA_CLIENT_SECRET!,
-            merchant.refreshToken
-          );
-          accessToken = newTokens.access_token;
-
-          await db.merchant.update({
-            where: { id: merchantId },
-            data: {
-              accessToken: newTokens.access_token,
-              refreshToken: newTokens.refresh_token,
-              tokenExpiresAt: new Date(Date.now() + newTokens.expires_in * 1000),
-            },
-          });
-        }
-
-        const salla = new SallaClient(accessToken);
+        // Get a SallaClient with valid token (auto-refreshes with DB locking if needed)
+        const salla = await getSallaClient(merchantId);
 
         // Get images to upload
         const imagesToUpload = product.selectedImages.length > 0
