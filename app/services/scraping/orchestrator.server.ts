@@ -18,6 +18,11 @@ import type {
 import { detectPlatform, DEFAULT_SCRAPING_CONFIG } from "./types";
 import { ApifyProvider } from "./apify.server";
 import { OxylabsProvider } from "./oxylabs.server";
+import {
+  estimateScrapeCost,
+  createCostMetadata,
+  type ScrapeCostMetadata,
+} from "./cost-tracker.server";
 
 interface ProviderCredentials {
   apify?: {
@@ -144,6 +149,18 @@ export class ScrapingOrchestrator {
 
           // Validate the result
           this.validateProduct(product);
+
+          // Attach cost metadata for subscription enforcement
+          const costMetadata = createCostMetadata(
+            product.provider,
+            platform,
+            duration
+          );
+          product.costMetadata = costMetadata;
+
+          console.log(
+            `[Orchestrator] Scrape cost: $${costMetadata.estimatedCostUsd.toFixed(4)} (${costMetadata.provider})`
+          );
 
           attempts.push({
             success: true,

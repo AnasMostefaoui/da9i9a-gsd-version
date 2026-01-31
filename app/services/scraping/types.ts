@@ -5,6 +5,17 @@
 
 export type Platform = "aliexpress" | "amazon";
 
+/**
+ * Cost metadata tracked for each scrape operation
+ */
+export interface ScrapeCostMetadata {
+  provider: string;
+  platform: string;
+  estimatedCostUsd: number;
+  scrapedAt: string; // ISO timestamp
+  duration: number; // milliseconds
+}
+
 export interface ScrapedProduct {
   title: string;
   description: string;
@@ -26,6 +37,9 @@ export interface ScrapedProduct {
   // Metadata about the scrape
   scrapedAt: Date;
   provider: string;
+
+  // Cost tracking metadata (attached by orchestrator)
+  costMetadata?: ScrapeCostMetadata;
 }
 
 export interface ProductVariant {
