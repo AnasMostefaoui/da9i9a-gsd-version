@@ -1,15 +1,36 @@
 import type { Route } from "./+types/salla";
 import { redirect } from "react-router";
-import { getMerchantId } from "~/lib/session.server";
+import { getMerchantId, destroySession, getSession } from "~/lib/session.server";
+import { db } from "~/lib/db.server";
 
 // Salla OAuth initiation - redirects to Salla authorization
 export async function loader({ request }: Route.LoaderArgs) {
-  // Check if user is already logged in
+  // Check if user is already logged in with a valid session
   const existingMerchantId = await getMerchantId(request);
+
   if (existingMerchantId) {
-    // Already logged in, redirect to dashboard
-    return redirect("/dashboard");
+    // Verify merchant exists and is active
+    const merchant = await db.merchant.findUnique({
+      where: { id: existingMerchantId },
+      select: { id: true, status: true },
+    });
+
+    if (merchant && merchant.status === "ACTIVE") {
+      console.log(`[Auth] User ${existingMerchantId} already logged in, redirecting to dashboard`);
+      return redirect("/dashboard");
+    }
+
+    // Merchant not found or expired - clear invalid session
+    console.log(`[Auth] Clearing invalid session for merchant ${existingMerchantId}, status: ${merchant?.status}`);
+    const session = await getSession(request);
+    return redirect("/auth/salla", {
+      headers: {
+        "Set-Cookie": await destroySession(session),
+      },
+    });
   }
+
+  console.log("[Auth] No session found, initiating Salla OAuth");
 
   const clientId = process.env.SALLA_CLIENT_ID;
   const redirectUri = process.env.SALLA_REDIRECT_URI;
