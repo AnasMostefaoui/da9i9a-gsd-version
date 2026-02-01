@@ -151,12 +151,12 @@ function ImportContent({ actionData }: { actionData: ActionData | undefined }) {
                   onClick={() => setContentLang("ar")}
                   className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all ${
                     contentLang === "ar"
-                      ? "border-orange-500 bg-orange-50"
-                      : "border-gray-200 bg-white hover:border-orange-300"
+                      ? "border-orange-500 bg-orange-50 text-gray-900"
+                      : "border-gray-200 bg-white hover:border-orange-300 text-gray-900"
                   }`}
                 >
                   <span className="text-2xl">🇸🇦</span>
-                  <span className="font-medium">العربية</span>
+                  <span className="font-medium text-gray-900">العربية</span>
                   {contentLang === "ar" && (
                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                   )}
@@ -167,12 +167,12 @@ function ImportContent({ actionData }: { actionData: ActionData | undefined }) {
                   onClick={() => setContentLang("en")}
                   className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all ${
                     contentLang === "en"
-                      ? "border-orange-500 bg-orange-50"
-                      : "border-gray-200 bg-white hover:border-orange-300"
+                      ? "border-orange-500 bg-orange-50 text-gray-900"
+                      : "border-gray-200 bg-white hover:border-orange-300 text-gray-900"
                   }`}
                 >
                   <span className="text-2xl">🇺🇸</span>
-                  <span className="font-medium">English</span>
+                  <span className="font-medium text-gray-900">English</span>
                   {contentLang === "en" && (
                     <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
                   )}
@@ -200,7 +200,7 @@ function ImportContent({ actionData }: { actionData: ActionData | undefined }) {
                   placeholder={t("import.linkPlaceholder")}
                   className={`w-full ${
                     isRtl ? "pe-12 ps-4" : "ps-12 pe-4"
-                  } py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none transition-colors`}
+                  } py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none transition-colors bg-white text-gray-900 placeholder-gray-400`}
                   dir="ltr"
                 />
               </div>
@@ -244,11 +244,11 @@ function ImportContent({ actionData }: { actionData: ActionData | undefined }) {
               <div className="flex justify-center items-center gap-6">
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
-                  <span className="text-sm font-medium">Amazon</span>
+                  <span className="text-sm font-medium text-gray-900">Amazon</span>
                 </div>
                 <div className="flex items-center gap-2">
                   <div className="w-2 h-2 bg-coral-500 rounded-full"></div>
-                  <span className="text-sm font-medium">AliExpress</span>
+                  <span className="text-sm font-medium text-gray-900">AliExpress</span>
                 </div>
               </div>
             </div>
@@ -262,7 +262,7 @@ function ImportContent({ actionData }: { actionData: ActionData | undefined }) {
 
         {/* Example Links */}
         <div className="mt-8 bg-white rounded-xl p-6 border-2 border-gray-200">
-          <h3 className="font-bold mb-4">{t("import.examples")}</h3>
+          <h3 className="font-bold mb-4 text-gray-900">{t("import.examples")}</h3>
           <div className="space-y-2">
             <div className="p-3 bg-gray-50 rounded-lg">
               <code className="text-sm text-gray-700 break-all" dir="ltr">
