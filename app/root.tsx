@@ -5,10 +5,27 @@ import {
   Outlet,
   Scripts,
   ScrollRestoration,
+  useNavigation,
 } from "react-router";
 
 import type { Route } from "./+types/root";
 import "./app.css";
+
+// Global loading indicator for page transitions
+function GlobalLoadingIndicator() {
+  const navigation = useNavigation();
+  const isLoading = navigation.state === "loading" || navigation.state === "submitting";
+
+  if (!isLoading) return null;
+
+  return (
+    <div className="fixed top-0 left-0 right-0 z-50">
+      <div className="h-1 bg-gradient-to-r from-orange-500 to-coral-500 animate-pulse">
+        <div className="h-full bg-white/30 animate-[loading_1s_ease-in-out_infinite]" />
+      </div>
+    </div>
+  );
+}
 
 export const links: Route.LinksFunction = () => [
   { rel: "preconnect", href: "https://fonts.googleapis.com" },
@@ -42,7 +59,12 @@ export function Layout({ children }: { children: React.ReactNode }) {
 }
 
 export default function App() {
-  return <Outlet />;
+  return (
+    <>
+      <GlobalLoadingIndicator />
+      <Outlet />
+    </>
+  );
 }
 
 export function ErrorBoundary({ error }: Route.ErrorBoundaryProps) {
