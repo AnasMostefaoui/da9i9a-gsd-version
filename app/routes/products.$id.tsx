@@ -2,6 +2,7 @@ import type { Route } from "./+types/products.$id";
 import { Link, Form, useNavigation, useFetcher } from "react-router";
 import { redirect, data } from "react-router";
 import { useState } from "react";
+import { ArrowLeft } from "lucide-react";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
 import { getSallaClient } from "~/lib/token-refresh.server";
@@ -9,11 +10,11 @@ import { getGeminiProvider, isGeminiConfigured, generateLandingPageContent, tran
 import type { LandingPageContent } from "~/services/ai/types";
 import { LandingPagePreview } from "~/components/landing-page";
 import { COLOR_PALETTES, PALETTE_IDS, getPalette } from "~/lib/color-palettes";
+import { LanguageProvider, useLanguage } from "~/contexts/LanguageContext";
+import Header from "~/components/Header";
 
 export function meta({}: Route.MetaArgs) {
-  return [
-    { title: "تحرير المنتج - سلة دقيقة" },
-  ];
+  return [{ title: "تحرير المنتج - في دقيقة" }];
 }
 
 export async function loader({ request, params }: Route.LoaderArgs) {
@@ -306,17 +307,17 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 }
 
-const STATUS_CONFIG: Record<string, { label: string; color: string }> = {
-  IMPORTING: { label: "جاري الاستيراد", color: "bg-yellow-100 text-yellow-700" },
-  IMPORTED: { label: "مستورد", color: "bg-gray-100 text-gray-700" },
-  ENHANCED: { label: "محسّن", color: "bg-blue-100 text-blue-700" },
-  PUSHING: { label: "جاري النشر", color: "bg-purple-100 text-purple-700" },
-  PUSHED: { label: "تم النشر", color: "bg-green-100 text-green-700" },
-  FAILED: { label: "فشل", color: "bg-red-100 text-red-700" },
+const STATUS_CONFIG: Record<string, { labelAr: string; labelEn: string; color: string }> = {
+  IMPORTING: { labelAr: "جاري الاستيراد", labelEn: "Importing", color: "bg-yellow-100 text-yellow-700" },
+  IMPORTED: { labelAr: "مستورد", labelEn: "Imported", color: "bg-gray-100 text-gray-700" },
+  ENHANCED: { labelAr: "محسّن", labelEn: "Enhanced", color: "bg-blue-100 text-blue-700" },
+  PUSHING: { labelAr: "جاري النشر", labelEn: "Publishing", color: "bg-purple-100 text-purple-700" },
+  PUSHED: { labelAr: "تم النشر", labelEn: "Published", color: "bg-green-100 text-green-700" },
+  FAILED: { labelAr: "فشل", labelEn: "Failed", color: "bg-red-100 text-red-700" },
 };
 
-export default function ProductDetail({ loaderData, actionData }: Route.ComponentProps) {
-  const product = loaderData;
+function ProductDetailContent({ product, actionData }: { product: Route.ComponentProps["loaderData"]; actionData: Route.ComponentProps["actionData"] }) {
+  const { t, language, isRtl } = useLanguage();
   const navigation = useNavigation();
   const paletteFetcher = useFetcher();
   const isSubmitting = navigation.state === "submitting";
@@ -333,7 +334,8 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
     );
   };
 
-  const status = STATUS_CONFIG[product.status] || STATUS_CONFIG.IMPORTED;
+  const statusConfig = STATUS_CONFIG[product.status] || STATUS_CONFIG.IMPORTED;
+  const statusLabel = language === "ar" ? statusConfig.labelAr : statusConfig.labelEn;
 
   // Get selected images for preview
   const previewImages = selectedImages.length > 0
@@ -341,33 +343,37 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
     : product.images.slice(0, 5);
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-        <div className="container mx-auto px-4 py-4 flex items-center justify-between">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-coral-50">
+      <Header showAuth />
+
+      {/* Sub Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <Link to="/dashboard" className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
-              ← العودة
+            <Link
+              to="/dashboard"
+              className="flex items-center gap-2 text-gray-600 hover:text-orange-500 transition-colors"
+            >
+              <ArrowLeft className={`w-5 h-5 ${isRtl ? "rotate-180" : ""}`} />
+              {t("import.back")}
             </Link>
-            <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-              تحرير المنتج
-            </h1>
+            <h1 className="text-xl font-bold">{t("config.title")}</h1>
           </div>
           <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-500 dark:text-gray-400">
+            <span className="text-xs text-gray-500">
               {product.contentLang === "ar" ? "🇸🇦 العربية" : "🇺🇸 English"}
             </span>
-            <span className={`px-3 py-1 text-sm rounded-full ${status.color}`}>
-              {status.label}
+            <span className={`px-3 py-1 text-sm rounded-full ${statusConfig.color}`}>
+              {statusLabel}
             </span>
           </div>
         </div>
-      </header>
+      </div>
 
       {/* Content - Side by Side Layout */}
-      <div className="flex h-[calc(100vh-65px)]">
+      <div className="flex h-[calc(100vh-130px)]">
         {/* Left Panel - Form (55%) */}
-        <div className="w-[55%] overflow-y-auto p-6 border-r border-gray-200 dark:border-gray-800">
+        <div className="w-[55%] overflow-y-auto p-6 border-e border-gray-200">
           {(actionData?.message || actionData?.error) && (
             <div className={`mb-6 p-4 rounded-lg border ${
               actionData.error
@@ -379,11 +385,11 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
           )}
 
           {/* Images Section */}
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+          <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
               صور المنتج
             </h2>
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
+            <p className="text-sm text-gray-600 mb-4">
               اختر الصور التي تريد استخدامها في متجرك
             </p>
             <div className="grid grid-cols-4 gap-3">
@@ -394,13 +400,13 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
                   onClick={() => toggleImage(index)}
                   className={`relative aspect-square rounded-lg overflow-hidden border-2 transition-all ${
                     selectedImages.includes(index)
-                      ? "border-blue-500 ring-2 ring-blue-500/30"
-                      : "border-gray-200 dark:border-gray-700 hover:border-gray-300"
+                      ? "border-orange-500 ring-2 ring-orange-500/30"
+                      : "border-gray-200 hover:border-orange-300"
                   }`}
                 >
                   <img src={image} alt={`صورة ${index + 1}`} className="w-full h-full object-cover" />
                   {selectedImages.includes(index) && (
-                    <div className="absolute top-2 right-2 w-5 h-5 bg-blue-500 rounded-full flex items-center justify-center">
+                    <div className="absolute top-2 right-2 w-5 h-5 bg-orange-500 rounded-full flex items-center justify-center">
                       <span className="text-white text-xs">✓</span>
                     </div>
                   )}
@@ -413,30 +419,30 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
           <Form
             method="post"
             key={`${product.titleAr}-${product.descriptionAr}`}
-            className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6 mb-6"
+            className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6 mb-6"
           >
             <input type="hidden" name="intent" value="update" />
             <input type="hidden" name="selectedImages" value={JSON.stringify(selectedImages)} />
 
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
               تفاصيل المنتج
             </h2>
 
             <div className="space-y-4">
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     العنوان (عربي)
                   </label>
                   <input
                     type="text"
                     name="titleAr"
                     defaultValue={product.titleAr || ""}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg bg-white text-gray-900 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     العنوان (إنجليزي)
                   </label>
                   <input
@@ -444,25 +450,25 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
                     name="titleEn"
                     defaultValue={product.titleEn || ""}
                     dir="ltr"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg bg-white text-gray-900 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     الوصف (عربي)
                   </label>
                   <textarea
                     name="descriptionAr"
                     rows={3}
                     defaultValue={product.descriptionAr || ""}
-                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg bg-white text-gray-900 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     الوصف (إنجليزي)
                   </label>
                   <textarea
@@ -470,14 +476,14 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
                     rows={3}
                     defaultValue={product.descriptionEn || ""}
                     dir="ltr"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg bg-white text-gray-900 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
               </div>
 
               <div className="grid grid-cols-3 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     السعر
                   </label>
                   <input
@@ -486,25 +492,25 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
                     step="0.01"
                     defaultValue={product.price}
                     dir="ltr"
-                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white"
+                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg bg-white text-gray-900 focus:border-orange-500 focus:outline-none"
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
                     العملة
                   </label>
                   <input
                     type="text"
                     value={product.currency}
                     disabled
-                    className="w-full px-3 py-2 text-sm border border-gray-300 dark:border-gray-700 rounded-lg bg-gray-100 dark:bg-gray-800 text-gray-500"
+                    className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg bg-gray-100 text-gray-500"
                   />
                 </div>
                 <div className="flex items-end">
                   <button
                     type="submit"
                     disabled={isSubmitting}
-                    className="w-full px-4 py-2 text-sm font-medium text-white bg-gray-600 rounded-lg hover:bg-gray-700 transition-colors disabled:opacity-50"
+                    className="w-full px-4 py-2 text-sm font-medium text-white bg-gray-700 rounded-lg hover:bg-gray-800 transition-colors disabled:opacity-50"
                   >
                     حفظ التغييرات
                   </button>
@@ -515,14 +521,14 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
 
           {/* Arabic Translation Warning */}
           {product.contentLang === "ar" && !product.titleAr && product.titleEn && (
-            <div className="mb-4 p-4 bg-amber-50 dark:bg-amber-900/20 border border-amber-200 dark:border-amber-800 rounded-lg">
+            <div className="mb-4 p-4 bg-amber-50 border-2 border-amber-200 rounded-xl">
               <div className="flex items-start gap-3">
                 <span className="text-xl">⚠️</span>
                 <div className="flex-1">
-                  <p className="text-sm font-medium text-amber-800 dark:text-amber-200">
+                  <p className="text-sm font-medium text-amber-800">
                     المحتوى العربي غير مكتمل
                   </p>
-                  <p className="text-xs text-amber-600 dark:text-amber-400 mt-1">
+                  <p className="text-xs text-amber-600 mt-1">
                     اخترت اللغة العربية عند الاستيراد، لكن الترجمة لم تكتمل. انقر على "ترجمة" لإكمال المحتوى العربي.
                   </p>
                 </div>
@@ -533,11 +539,11 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
           {/* Actions Grid */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             {/* Enhance Card */}
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-4">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+            <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-4">
+              <h3 className="font-semibold text-gray-900 mb-2">
                 تحسين بالذكاء الاصطناعي
               </h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+              <p className="text-xs text-gray-600 mb-3">
                 تحسين العنوان والوصف تلقائياً
               </p>
               <Form method="post">
@@ -545,7 +551,7 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
                 <button
                   type="submit"
                   disabled={isSubmitting || product.status === "PUSHED"}
-                  className="w-full px-4 py-2 text-sm text-white bg-gradient-to-l from-purple-600 to-blue-600 rounded-lg hover:from-purple-700 hover:to-blue-700 transition-all disabled:opacity-50 disabled:cursor-not-allowed"
+                  className="w-full px-4 py-2 text-sm text-white bg-gradient-to-r from-orange-500 to-coral-500 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {isSubmitting && currentIntent === "enhance" ? "جاري التحسين..." : "✨ تحسين"}
                 </button>
@@ -553,15 +559,15 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
             </div>
 
             {/* Translate to Arabic Card */}
-            <div className={`bg-white dark:bg-gray-900 rounded-lg shadow-sm border p-4 ${
+            <div className={`bg-white rounded-xl shadow-sm border-2 p-4 ${
               product.contentLang === "ar" && !product.titleAr && product.titleEn
-                ? "border-amber-400 dark:border-amber-600 ring-2 ring-amber-200 dark:ring-amber-800"
-                : "border-gray-200 dark:border-gray-800"
+                ? "border-amber-400 ring-2 ring-amber-200"
+                : "border-gray-200"
             }`}>
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+              <h3 className="font-semibold text-gray-900 mb-2">
                 ترجمة للعربية
               </h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+              <p className="text-xs text-gray-600 mb-3">
                 ترجمة المحتوى بأسلوب سعودي
               </p>
               <Form method="post">
@@ -571,8 +577,8 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
                   disabled={isSubmitting || !product.titleEn || product.status === "PUSHED"}
                   className={`w-full px-4 py-2 text-sm text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                     product.contentLang === "ar" && !product.titleAr && product.titleEn
-                      ? "bg-gradient-to-l from-amber-500 to-orange-500 hover:from-amber-600 hover:to-orange-600 animate-pulse"
-                      : "bg-gradient-to-l from-emerald-600 to-teal-600 hover:from-emerald-700 hover:to-teal-700"
+                      ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:shadow-lg animate-pulse"
+                      : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-lg"
                   }`}
                 >
                   {isSubmitting && currentIntent === "translate-arabic" ? "جاري الترجمة..." : "🇸🇦 ترجمة"}
@@ -587,11 +593,11 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
           {/* Second Actions Row */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             {/* Push to Salla Card */}
-            <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-4">
-              <h3 className="font-semibold text-gray-900 dark:text-white mb-2">
+            <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-4">
+              <h3 className="font-semibold text-gray-900 mb-2">
                 نشر في سلة
               </h3>
-              <p className="text-xs text-gray-600 dark:text-gray-400 mb-3">
+              <p className="text-xs text-gray-600 mb-3">
                 إنشاء المنتج في متجرك
               </p>
               <Form method="post">
@@ -613,16 +619,16 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
           </div>
 
           {/* Source Info */}
-          <div className="bg-gray-50 dark:bg-gray-800/50 rounded-lg p-4">
-            <p className="text-xs text-gray-500 dark:text-gray-400 mb-1">المصدر:</p>
-            <p className="text-sm text-gray-600 dark:text-gray-300 mb-2">
+          <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
+            <p className="text-xs text-gray-500 mb-1">المصدر:</p>
+            <p className="text-sm text-gray-600 mb-2">
               {product.platform === "ALIEXPRESS" ? "AliExpress" : "Amazon"}
             </p>
             <a
               href={product.sourceUrl}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-xs text-blue-600 dark:text-blue-400 hover:underline break-all"
+              className="text-xs text-orange-500 hover:text-orange-600 hover:underline break-all"
               dir="ltr"
             >
               {product.sourceUrl}
@@ -631,9 +637,9 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
         </div>
 
         {/* Right Panel - Mobile Preview (45%) */}
-        <div className="w-[45%] bg-gray-100 dark:bg-gray-900 p-6 flex flex-col">
+        <div className="w-[45%] bg-gray-100 p-6 flex flex-col">
           <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white">
+            <h2 className="text-lg font-semibold text-gray-900">
               معاينة صفحة الهبوط
             </h2>
             <Form method="post">
@@ -641,7 +647,7 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className="px-4 py-2 text-sm font-medium text-white bg-orange-500 rounded-lg hover:bg-orange-600 transition-colors disabled:opacity-50"
+                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-coral-500 rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
               >
                 {isSubmitting && currentIntent === "generate-landing-page"
                   ? "جاري الإنشاء..."
@@ -654,7 +660,7 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
 
           {/* Color Palette Selector - Visual Pairs */}
           <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+            <label className="block text-sm font-medium text-gray-700 mb-2">
               لوحة الألوان
             </label>
             <div className="grid grid-cols-4 gap-2">
@@ -674,8 +680,8 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
                     }}
                     className={`relative flex flex-col items-center p-2 rounded-lg border-2 transition-all ${
                       isSelected
-                        ? "border-gray-800 dark:border-white ring-2 ring-gray-400/30"
-                        : "border-gray-200 dark:border-gray-700 hover:border-gray-400"
+                        ? "border-orange-500 ring-2 ring-orange-500/30"
+                        : "border-gray-200 hover:border-orange-300"
                     }`}
                     title={palette.name}
                   >
@@ -696,12 +702,12 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
                         />
                       </div>
                     </div>
-                    <span className="text-[10px] text-gray-600 dark:text-gray-400 truncate w-full text-center">
+                    <span className="text-[10px] text-gray-600 truncate w-full text-center">
                       {palette.nameAr}
                     </span>
                     {isSelected && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-gray-800 dark:bg-white rounded-full flex items-center justify-center">
-                        <span className="text-white dark:text-gray-800 text-[8px]">✓</span>
+                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-[8px]">✓</span>
                       </div>
                     )}
                   </button>
@@ -730,6 +736,14 @@ export default function ProductDetail({ loaderData, actionData }: Route.Componen
           </div>
         </div>
       </div>
-    </main>
+    </div>
+  );
+}
+
+export default function ProductDetail({ loaderData, actionData }: Route.ComponentProps) {
+  return (
+    <LanguageProvider>
+      <ProductDetailContent product={loaderData} actionData={actionData} />
+    </LanguageProvider>
   );
 }

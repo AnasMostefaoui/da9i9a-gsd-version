@@ -3,6 +3,18 @@
 @theme {
   --font-sans: "IBM Plex Sans Arabic", ui-sans-serif, system-ui, sans-serif,
     "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji";
+
+  /* Brand Colors - Coral palette */
+  --color-coral-50: #fff5f5;
+  --color-coral-100: #ffe3e3;
+  --color-coral-200: #ffc9c9;
+  --color-coral-300: #ffa8a8;
+  --color-coral-400: #ff8787;
+  --color-coral-500: #ff6b6b;
+  --color-coral-600: #fa5252;
+  --color-coral-700: #f03e3e;
+  --color-coral-800: #e03131;
+  --color-coral-900: #c92a2a;
 }
 
 html,

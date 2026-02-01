@@ -9,8 +9,11 @@ import type { LoaderFunctionArgs, MetaFunction } from "react-router";
 import { useEffect, useState, useCallback } from "react";
 import { Link, useNavigate, useLoaderData } from "react-router";
 import { redirect } from "react-router";
+import { ArrowLeft, AlertCircle, Loader, CheckCircle } from "lucide-react";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
+import { LanguageProvider, useLanguage } from "~/contexts/LanguageContext";
+import Header from "~/components/Header";
 
 interface LoaderData {
   jobId: string;
@@ -20,7 +23,7 @@ interface LoaderData {
 
 export const meta: MetaFunction = () => {
   return [
-    { title: "جاري الاستيراد... - سلة دقيقة" },
+    { title: "جاري الاستيراد... - في دقيقة" },
   ];
 };
 
@@ -65,9 +68,10 @@ interface ScrapeStatusResponse {
   error: string | null;
 }
 
-export default function ImportStatus() {
+function ImportStatusContent() {
   const { jobId, sourceUrl, initialStatus } = useLoaderData<LoaderData>();
   const navigate = useNavigate();
+  const { t, isRtl } = useLanguage();
 
   const [status, setStatus] = useState(initialStatus);
   const [error, setError] = useState<string | null>(null);
@@ -118,122 +122,126 @@ export default function ImportStatus() {
   };
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-coral-50">
+      <Header showAuth />
+
+      {/* Sub Header */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4">
           <Link
             to="/import"
-            className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white"
+            className="flex items-center gap-2 text-gray-600 hover:text-orange-500 transition-colors"
           >
-            &larr; العودة
+            <ArrowLeft className={`w-5 h-5 ${isRtl ? "rotate-180" : ""}`} />
+            {t("import.back")}
           </Link>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-            جاري الاستيراد
-          </h1>
-        </div>
-      </header>
-
-      {/* Content */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-xl mx-auto">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-8">
-            {status === "FAILED" ? (
-              // Error state
-              <div className="text-center">
-                <div className="mx-auto w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/30 flex items-center justify-center mb-4">
-                  <svg
-                    className="w-8 h-8 text-red-600 dark:text-red-400"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={2}
-                      d="M6 18L18 6M6 6l12 12"
-                    />
-                  </svg>
-                </div>
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  فشل الاستيراد
-                </h2>
-                <p className="text-gray-600 dark:text-gray-400 mb-6">
-                  {error || "حدث خطأ غير متوقع"}
-                </p>
-                <div className="flex gap-3 justify-center">
-                  <Link
-                    to="/import"
-                    className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-                  >
-                    المحاولة مرة أخرى
-                  </Link>
-                  <Link
-                    to="/dashboard"
-                    className="px-4 py-2 border border-gray-300 dark:border-gray-600 text-gray-700 dark:text-gray-300 rounded-lg hover:bg-gray-50 dark:hover:bg-gray-800 transition-colors"
-                  >
-                    العودة للوحة التحكم
-                  </Link>
-                </div>
-              </div>
-            ) : (
-              // Loading state
-              <div className="text-center">
-                {/* Animated loader */}
-                <div className="mx-auto w-16 h-16 mb-6 relative">
-                  <div className="absolute inset-0 rounded-full border-4 border-blue-100 dark:border-blue-900"></div>
-                  <div className="absolute inset-0 rounded-full border-4 border-blue-600 border-t-transparent animate-spin"></div>
-                </div>
-
-                <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
-                  جاري استيراد المنتج...
-                </h2>
-                <p className="text-gray-600 dark:text-gray-400 mb-4">
-                  يتم الآن استخراج بيانات المنتج من {getPlatform(sourceUrl)}
-                </p>
-
-                {/* Source URL */}
-                <div className="bg-gray-50 dark:bg-gray-800 rounded-lg p-3 mb-6">
-                  <p
-                    className="text-sm text-gray-500 dark:text-gray-400 truncate"
-                    dir="ltr"
-                  >
-                    {sourceUrl}
-                  </p>
-                </div>
-
-                {/* Progress indicators */}
-                <div className="space-y-2 text-sm text-gray-500 dark:text-gray-400">
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-green-500"></span>
-                    <span>تم إنشاء المنتج</span>
-                  </div>
-                  <div className="flex items-center justify-center gap-2">
-                    <span
-                      className={`w-2 h-2 rounded-full ${
-                        pollCount > 0 ? "bg-green-500" : "bg-yellow-500 animate-pulse"
-                      }`}
-                    ></span>
-                    <span>جاري استخراج البيانات...</span>
-                  </div>
-                  <div className="flex items-center justify-center gap-2">
-                    <span className="w-2 h-2 rounded-full bg-gray-300 dark:bg-gray-600"></span>
-                    <span className="text-gray-400 dark:text-gray-500">
-                      معالجة البيانات
-                    </span>
-                  </div>
-                </div>
-
-                {/* Estimated time */}
-                <p className="mt-6 text-xs text-gray-400 dark:text-gray-500">
-                  قد تستغرق العملية من 30 إلى 60 ثانية
-                </p>
-              </div>
-            )}
-          </div>
+          <h1 className="text-xl font-bold">{t("import.importing")}</h1>
         </div>
       </div>
-    </main>
+
+      {/* Content */}
+      <div className="max-w-xl mx-auto px-6 py-12">
+        <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-200 p-8">
+          {status === "FAILED" ? (
+            // Error state
+            <div className="text-center">
+              <div className="mx-auto w-20 h-20 rounded-full bg-red-100 flex items-center justify-center mb-6">
+                <AlertCircle className="w-10 h-10 text-red-500" />
+              </div>
+              <h2 className="text-xl font-bold text-gray-900 mb-3">
+                فشل الاستيراد
+              </h2>
+              <p className="text-gray-600 mb-8">
+                {error || "حدث خطأ غير متوقع"}
+              </p>
+              <div className="flex gap-4 justify-center">
+                <Link
+                  to="/import"
+                  className="px-6 py-3 bg-gradient-to-r from-orange-500 to-coral-500 text-white rounded-xl font-bold hover:shadow-lg transition-shadow"
+                >
+                  المحاولة مرة أخرى
+                </Link>
+                <Link
+                  to="/dashboard"
+                  className="px-6 py-3 border-2 border-gray-200 text-gray-700 rounded-xl font-bold hover:bg-gray-50 transition-colors"
+                >
+                  العودة للوحة التحكم
+                </Link>
+              </div>
+            </div>
+          ) : (
+            // Loading state
+            <div className="text-center">
+              {/* Animated loader */}
+              <div className="mx-auto w-20 h-20 mb-8 relative">
+                <div className="absolute inset-0 rounded-full border-4 border-orange-100"></div>
+                <div className="absolute inset-0 rounded-full border-4 border-orange-500 border-t-transparent animate-spin"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Loader className="w-8 h-8 text-orange-500 animate-pulse" />
+                </div>
+              </div>
+
+              <h2 className="text-xl font-bold text-gray-900 mb-3">
+                جاري استيراد المنتج...
+              </h2>
+              <p className="text-gray-600 mb-6">
+                يتم الآن استخراج بيانات المنتج من {getPlatform(sourceUrl)}
+              </p>
+
+              {/* Source URL */}
+              <div className="bg-gray-50 rounded-xl p-4 mb-8 border-2 border-gray-200">
+                <p
+                  className="text-sm text-gray-500 truncate"
+                  dir="ltr"
+                >
+                  {sourceUrl}
+                </p>
+              </div>
+
+              {/* Progress indicators */}
+              <div className="space-y-3 text-sm">
+                <div className="flex items-center justify-center gap-3">
+                  <CheckCircle className="w-5 h-5 text-green-500" />
+                  <span className="text-gray-700">تم إنشاء المنتج</span>
+                </div>
+                <div className="flex items-center justify-center gap-3">
+                  <span
+                    className={`w-5 h-5 rounded-full flex items-center justify-center ${
+                      pollCount > 0 ? "bg-green-500" : "bg-orange-500 animate-pulse"
+                    }`}
+                  >
+                    {pollCount > 0 ? (
+                      <CheckCircle className="w-4 h-4 text-white" />
+                    ) : (
+                      <Loader className="w-3 h-3 text-white animate-spin" />
+                    )}
+                  </span>
+                  <span className="text-gray-700">جاري استخراج البيانات...</span>
+                </div>
+                <div className="flex items-center justify-center gap-3">
+                  <span className="w-5 h-5 rounded-full bg-gray-300"></span>
+                  <span className="text-gray-400">
+                    معالجة البيانات
+                  </span>
+                </div>
+              </div>
+
+              {/* Estimated time */}
+              <p className="mt-8 text-xs text-gray-400">
+                قد تستغرق العملية من 30 إلى 60 ثانية
+              </p>
+            </div>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+export default function ImportStatus() {
+  return (
+    <LanguageProvider>
+      <ImportStatusContent />
+    </LanguageProvider>
   );
 }

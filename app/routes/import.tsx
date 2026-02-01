@@ -2,15 +2,16 @@ import type { Route } from "./+types/import";
 import { useState } from "react";
 import { Form, useNavigation, Link } from "react-router";
 import { redirect, data } from "react-router";
+import { ArrowLeft, Link as LinkIcon, Loader, ShoppingBag } from "lucide-react";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
 import { detectPlatform } from "~/services/scraping/index.server";
 import { inngest } from "~/inngest/client";
+import { LanguageProvider, useLanguage } from "~/contexts/LanguageContext";
+import Header from "~/components/Header";
 
 export function meta({}: Route.MetaArgs) {
-  return [
-    { title: "استيراد منتج - سلة دقيقة" },
-  ];
+  return [{ title: "استيراد منتج - في دقيقة" }];
 }
 
 export async function loader({ request }: Route.LoaderArgs) {
@@ -32,7 +33,7 @@ export async function action({ request }: Route.ActionArgs) {
   const platform = detectPlatform(url);
   if (!platform) {
     return data({
-      error: "الرابط غير صالح. يرجى إدخال رابط من AliExpress أو Amazon"
+      error: "الرابط غير صالح. يرجى إدخال رابط من AliExpress أو Amazon",
     }, { status: 400 });
   }
 
@@ -56,8 +57,8 @@ export async function action({ request }: Route.ActionArgs) {
         price: 99.99,
         currency: "SAR",
         images: [
-          "/mock-images/2151232244.jpg",
-          "/mock-images/2151232253.jpg",
+          "https://images.unsplash.com/photo-1523275335684-37898b6baf30?w=400&h=400&fit=crop",
+          "https://images.unsplash.com/photo-1505740420928-5e560c06d30e?w=400&h=400&fit=crop",
         ],
         status: "IMPORTED",
         contentLang,
@@ -73,7 +74,7 @@ export async function action({ request }: Route.ActionArgs) {
       merchantId,
       sourceUrl: url,
       platform: platform.toUpperCase() as "ALIEXPRESS" | "AMAZON",
-      price: 0, // Will be updated by scraper
+      price: 0,
       currency: "SAR",
       status: "IMPORTING",
       contentLang,
@@ -106,144 +107,186 @@ interface ActionData {
   details?: string;
 }
 
-export default function Import({ actionData }: Route.ComponentProps) {
-  const typedActionData = actionData as ActionData | undefined;
+function ImportContent({ actionData }: { actionData: ActionData | undefined }) {
+  const { t, isRtl } = useLanguage();
   const navigation = useNavigation();
   const isSubmitting = navigation.state === "submitting";
   const [contentLang, setContentLang] = useState<"ar" | "en">("ar");
 
   return (
-    <main className="min-h-screen bg-gray-50 dark:bg-gray-950">
-      {/* Header */}
-      <header className="bg-white dark:bg-gray-900 border-b border-gray-200 dark:border-gray-800">
-        <div className="container mx-auto px-4 py-4 flex items-center gap-4">
-          <Link to="/dashboard" className="text-gray-600 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white">
-            ← العودة
-          </Link>
-          <h1 className="text-xl font-bold text-gray-900 dark:text-white">
-            استيراد منتج
-          </h1>
-        </div>
-      </header>
+    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-coral-50">
+      <Header showAuth />
 
-      {/* Content */}
-      <div className="container mx-auto px-4 py-8">
-        <div className="max-w-xl mx-auto">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-sm border border-gray-200 dark:border-gray-800 p-6">
-            <h2 className="text-lg font-semibold text-gray-900 dark:text-white mb-4">
-              الصق رابط المنتج
-            </h2>
-            <p className="text-gray-600 dark:text-gray-400 mb-6">
-              ادخل رابط منتج من AliExpress أو Amazon وسنقوم باستخراج بيانات المنتج تلقائياً
-            </p>
+      <div className="max-w-4xl mx-auto px-6 py-8">
+        {/* Back Button */}
+        <Link
+          to="/dashboard"
+          className="inline-flex items-center gap-2 text-gray-600 hover:text-orange-500 mb-6 transition-colors"
+        >
+          <ArrowLeft className={`w-5 h-5 ${isRtl ? "rotate-180" : ""}`} />
+          {t("import.back")}
+        </Link>
 
-            <Form method="post" className="space-y-4">
-              {/* Language Selector */}
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                  لغة المحتوى المُولَّد
-                </label>
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    onClick={() => setContentLang("ar")}
-                    className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      contentLang === "ar"
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-blue-400"
-                    }`}
-                  >
-                    🇸🇦 العربية
-                  </button>
-                  <button
-                    type="button"
-                    onClick={() => setContentLang("en")}
-                    className={`flex-1 px-4 py-2 rounded-lg border text-sm font-medium transition-colors ${
-                      contentLang === "en"
-                        ? "bg-blue-600 text-white border-blue-600"
-                        : "bg-white dark:bg-gray-800 text-gray-700 dark:text-gray-300 border-gray-300 dark:border-gray-600 hover:border-blue-400"
-                    }`}
-                  >
-                    🇺🇸 English
-                  </button>
-                </div>
-                <input type="hidden" name="contentLang" value={contentLang} />
-                <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-                  سيتم إنشاء العنوان والوصف وصفحة الهبوط بهذه اللغة
-                </p>
+        {/* Main Card */}
+        <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-200 overflow-hidden">
+          {/* Header */}
+          <div className="bg-gradient-to-br from-orange-500 to-coral-500 p-8 text-white text-center">
+            <div className="w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <LinkIcon className="w-8 h-8 text-white" />
+            </div>
+            <h1 className="text-2xl sm:text-3xl font-bold mb-2">{t("import.title")}</h1>
+            <p className="text-orange-50">{t("import.pasteLink")}</p>
+          </div>
+
+          {/* Form */}
+          <Form method="post" className="p-6 sm:p-8 space-y-6">
+            {/* Language Selection */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                {t("import.language")}
+              </label>
+              <div className="grid grid-cols-2 gap-4">
+                <button
+                  type="button"
+                  onClick={() => setContentLang("ar")}
+                  className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                    contentLang === "ar"
+                      ? "border-orange-500 bg-orange-50"
+                      : "border-gray-200 bg-white hover:border-orange-300"
+                  }`}
+                >
+                  <span className="text-2xl">🇸🇦</span>
+                  <span className="font-medium">العربية</span>
+                  {contentLang === "ar" && (
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  )}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={() => setContentLang("en")}
+                  className={`flex items-center justify-center gap-2 p-4 rounded-xl border-2 transition-all ${
+                    contentLang === "en"
+                      ? "border-orange-500 bg-orange-50"
+                      : "border-gray-200 bg-white hover:border-orange-300"
+                  }`}
+                >
+                  <span className="text-2xl">🇺🇸</span>
+                  <span className="font-medium">English</span>
+                  {contentLang === "en" && (
+                    <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  )}
+                </button>
               </div>
+              <input type="hidden" name="contentLang" value={contentLang} />
+              <p className="text-sm text-gray-500 mt-2">{t("import.languageNote")}</p>
+            </div>
 
-              <div>
-                <label htmlFor="url" className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  رابط المنتج
-                </label>
+            {/* URL Input */}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-3">
+                {t("import.pasteLink")}
+              </label>
+              <div className="relative">
+                <LinkIcon
+                  className={`absolute top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400 ${
+                    isRtl ? "end-4" : "start-4"
+                  }`}
+                />
                 <input
                   type="url"
                   name="url"
-                  id="url"
                   required
-                  placeholder="https://www.aliexpress.com/item/..."
-                  className="w-full px-4 py-3 border border-gray-300 dark:border-gray-700 rounded-lg bg-white dark:bg-gray-800 text-gray-900 dark:text-white placeholder-gray-500 focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder={t("import.linkPlaceholder")}
+                  className={`w-full ${
+                    isRtl ? "pe-12 ps-4" : "ps-12 pe-4"
+                  } py-4 border-2 border-gray-200 rounded-xl focus:border-orange-500 focus:outline-none transition-colors`}
                   dir="ltr"
                 />
               </div>
+            </div>
 
-              {typedActionData?.error && (
-                <div className="p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
-                  <p className="text-red-600 dark:text-red-400 text-sm">
-                    {typedActionData.error}
-                  </p>
-                  {process.env.NODE_ENV === "development" && typedActionData.details && (
-                    <details className="mt-2">
-                      <summary className="text-xs text-red-500 cursor-pointer">
-                        تفاصيل الخطأ (للمطورين)
-                      </summary>
-                      <pre className="mt-2 text-xs text-red-400 whitespace-pre-wrap overflow-auto max-h-32">
-                        {typedActionData.details}
-                      </pre>
-                    </details>
-                  )}
-                </div>
-              )}
-
-              {/* Dev option: force refresh cache */}
-              {process.env.NODE_ENV === "development" && (
-                <label className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
-                  <input
-                    type="checkbox"
-                    name="forceRefresh"
-                    value="true"
-                    className="rounded border-gray-300 dark:border-gray-600"
-                  />
-                  Force refresh (skip cache)
-                </label>
-              )}
-
-              <button
-                type="submit"
-                disabled={isSubmitting}
-                className="w-full px-6 py-3 text-lg font-medium text-white bg-blue-600 rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-              >
-                {isSubmitting ? "جاري الاستيراد..." : "استيراد المنتج"}
-              </button>
-            </Form>
-
-            <div className="mt-6 pt-6 border-t border-gray-200 dark:border-gray-800">
-              <h3 className="text-sm font-medium text-gray-700 dark:text-gray-300 mb-3">
-                المنصات المدعومة:
-              </h3>
-              <div className="flex gap-4">
-                <span className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                  <span className="text-orange-500">●</span> AliExpress
-                </span>
-                <span className="inline-flex items-center gap-2 text-sm text-gray-600 dark:text-gray-400">
-                  <span className="text-yellow-500">●</span> Amazon
-                </span>
+            {/* Error Message */}
+            {actionData?.error && (
+              <div className="p-4 bg-red-50 border-2 border-red-200 rounded-xl">
+                <p className="text-red-600 text-sm font-medium">{actionData.error}</p>
               </div>
+            )}
+
+            {/* Import Button */}
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className={`w-full flex items-center justify-center gap-3 px-6 py-4 rounded-xl font-bold text-lg transition-all ${
+                !isSubmitting
+                  ? "bg-gradient-to-r from-orange-500 to-coral-500 text-white hover:shadow-xl"
+                  : "bg-gray-200 text-gray-400 cursor-not-allowed"
+              }`}
+            >
+              {isSubmitting ? (
+                <>
+                  <Loader className="w-6 h-6 animate-spin" />
+                  {t("import.importing")}
+                </>
+              ) : (
+                <>
+                  <ShoppingBag className="w-6 h-6" />
+                  {t("import.button")}
+                </>
+              )}
+            </button>
+
+            {/* Supported Platforms */}
+            <div className="p-4 bg-gray-50 rounded-xl border-2 border-gray-200">
+              <p className="text-sm font-medium text-gray-700 mb-3 text-center">
+                {t("import.supported")}
+              </p>
+              <div className="flex justify-center items-center gap-6">
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-orange-500 rounded-full"></div>
+                  <span className="text-sm font-medium">Amazon</span>
+                </div>
+                <div className="flex items-center gap-2">
+                  <div className="w-2 h-2 bg-coral-500 rounded-full"></div>
+                  <span className="text-sm font-medium">AliExpress</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Info Note */}
+            <div className="p-4 bg-blue-50 border-2 border-blue-200 rounded-xl">
+              <p className="text-sm text-gray-700">💡 {t("import.note")}</p>
+            </div>
+          </Form>
+        </div>
+
+        {/* Example Links */}
+        <div className="mt-8 bg-white rounded-xl p-6 border-2 border-gray-200">
+          <h3 className="font-bold mb-4">{t("import.examples")}</h3>
+          <div className="space-y-2">
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <code className="text-sm text-gray-700 break-all" dir="ltr">
+                https://www.amazon.com/dp/B08N5WRWNW
+              </code>
+            </div>
+            <div className="p-3 bg-gray-50 rounded-lg">
+              <code className="text-sm text-gray-700 break-all" dir="ltr">
+                https://www.aliexpress.com/item/1005002345678901.html
+              </code>
             </div>
           </div>
         </div>
       </div>
-    </main>
+    </div>
+  );
+}
+
+export default function Import({ actionData }: Route.ComponentProps) {
+  const typedActionData = actionData as ActionData | undefined;
+
+  return (
+    <LanguageProvider>
+      <ImportContent actionData={typedActionData} />
+    </LanguageProvider>
   );
 }
