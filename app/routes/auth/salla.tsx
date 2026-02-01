@@ -1,8 +1,16 @@
 import type { Route } from "./+types/salla";
 import { redirect } from "react-router";
+import { getMerchantId } from "~/lib/session.server";
 
 // Salla OAuth initiation - redirects to Salla authorization
 export async function loader({ request }: Route.LoaderArgs) {
+  // Check if user is already logged in
+  const existingMerchantId = await getMerchantId(request);
+  if (existingMerchantId) {
+    // Already logged in, redirect to dashboard
+    return redirect("/dashboard");
+  }
+
   const clientId = process.env.SALLA_CLIENT_ID;
   const redirectUri = process.env.SALLA_REDIRECT_URI;
 

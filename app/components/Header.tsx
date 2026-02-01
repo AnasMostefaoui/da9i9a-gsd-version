@@ -1,13 +1,14 @@
-import { Zap, Globe, LogOut } from "lucide-react";
+import { Zap, Globe, LogOut, LayoutDashboard } from "lucide-react";
 import { Link, useLocation } from "react-router";
 import { useLanguage } from "~/contexts/LanguageContext";
 
 interface HeaderProps {
   storeName?: string;
   showAuth?: boolean;
+  isLoggedIn?: boolean;
 }
 
-export default function Header({ storeName, showAuth = false }: HeaderProps) {
+export default function Header({ storeName, showAuth = false, isLoggedIn = false }: HeaderProps) {
   const { language, setLanguage, t } = useLanguage();
   const location = useLocation();
   const isLanding = location.pathname === "/";
@@ -16,12 +17,12 @@ export default function Header({ storeName, showAuth = false }: HeaderProps) {
     <header className="border-b border-gray-200 bg-white/80 backdrop-blur-sm sticky top-0 z-50">
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between">
-          <Link to="/" className="flex items-center gap-3">
+          <Link to={isLoggedIn ? "/dashboard" : "/"} className="flex items-center gap-3">
             <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-coral-500 rounded-xl flex items-center justify-center">
               <Zap className="w-6 h-6 text-white" fill="white" />
             </div>
             <div className="flex items-center gap-2">
-              <h1 className="font-bold text-xl">{t("app.name")}</h1>
+              <h1 className="font-bold text-xl text-gray-900">{t("app.name")}</h1>
               {storeName && (
                 <span className="text-sm text-gray-500 hidden sm:inline">
                   • {storeName}
@@ -31,7 +32,7 @@ export default function Header({ storeName, showAuth = false }: HeaderProps) {
           </Link>
 
           <div className="flex items-center gap-4 sm:gap-6">
-            {isLanding && (
+            {isLanding && !isLoggedIn && (
               <>
                 <a
                   href="#features"
@@ -50,6 +51,25 @@ export default function Header({ storeName, showAuth = false }: HeaderProps) {
                   className="text-gray-700 hover:text-orange-500 transition-colors"
                 >
                   {t("nav.login")}
+                </Link>
+              </>
+            )}
+
+            {isLanding && isLoggedIn && (
+              <>
+                <Link
+                  to="/dashboard"
+                  className="flex items-center gap-2 text-gray-700 hover:text-orange-500 transition-colors"
+                >
+                  <LayoutDashboard className="w-4 h-4" />
+                  <span>{t("nav.dashboard")}</span>
+                </Link>
+                <Link
+                  to="/auth/logout"
+                  className="flex items-center gap-2 text-gray-600 hover:text-red-500 transition-colors"
+                >
+                  <LogOut className="w-4 h-4" />
+                  <span className="hidden sm:inline">{t("nav.logout")}</span>
                 </Link>
               </>
             )}

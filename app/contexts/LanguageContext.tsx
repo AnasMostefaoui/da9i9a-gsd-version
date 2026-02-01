@@ -20,6 +20,7 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.howItWorks": "كيف يعمل",
     "nav.login": "تسجيل الدخول",
     "nav.logout": "تسجيل الخروج",
+    "nav.dashboard": "لوحة التحكم",
 
     // Landing Page
     "landing.badge": "في دقيقة واحدة",
@@ -120,6 +121,7 @@ const translations: Record<Language, Record<string, string>> = {
     "nav.howItWorks": "How It Works",
     "nav.login": "Login",
     "nav.logout": "Logout",
+    "nav.dashboard": "Dashboard",
 
     // Landing Page
     "landing.badge": "In One Minute",

@@ -11,6 +11,7 @@ import {
 } from "lucide-react";
 import { LanguageProvider, useLanguage } from "~/contexts/LanguageContext";
 import Header from "~/components/Header";
+import { getMerchantId } from "~/lib/session.server";
 
 export function meta({}: Route.MetaArgs) {
   return [
@@ -22,12 +23,17 @@ export function meta({}: Route.MetaArgs) {
   ];
 }
 
-function LandingContent() {
+export async function loader({ request }: Route.LoaderArgs) {
+  const merchantId = await getMerchantId(request);
+  return { isLoggedIn: !!merchantId };
+}
+
+function LandingContent({ isLoggedIn }: { isLoggedIn: boolean }) {
   const { t, isRtl } = useLanguage();
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-coral-50">
-      <Header />
+      <Header isLoggedIn={isLoggedIn} />
 
       {/* Hero Section */}
       <section className="max-w-7xl mx-auto px-6 py-12 sm:py-20">
@@ -254,10 +260,10 @@ function LandingContent() {
   );
 }
 
-export default function Home() {
+export default function Home({ loaderData }: Route.ComponentProps) {
   return (
     <LanguageProvider>
-      <LandingContent />
+      <LandingContent isLoggedIn={loaderData.isLoggedIn} />
     </LanguageProvider>
   );
 }
