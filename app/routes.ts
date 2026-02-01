@@ -23,4 +23,5 @@ export default [
   route("api/inngest", "routes/api.inngest.ts"),
   route("api/scrape-status/:jobId", "routes/api.scrape-status.$jobId.ts"),
   route("api/landing/:productId", "routes/api.landing.$productId.ts"),
+  route("api/debug-session", "routes/api.debug-session.ts"),
 ] satisfies RouteConfig;

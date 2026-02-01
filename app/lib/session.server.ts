@@ -62,9 +62,11 @@ export { DEV_MERCHANT_ID };
 export async function createMerchantSession(merchantId: string, redirectTo: string) {
   const session = await sessionStorage.getSession();
   session.set("merchantId", merchantId);
+  const cookie = await commitSession(session);
+  console.log(`[Session] Created session for merchant ${merchantId}, cookie length: ${cookie.length}`);
   return redirect(redirectTo, {
     headers: {
-      "Set-Cookie": await commitSession(session),
+      "Set-Cookie": cookie,
     },
   });
 }
