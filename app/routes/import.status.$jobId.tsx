@@ -105,8 +105,8 @@ function ImportStatusContent() {
       return;
     }
 
-    // Poll every 2 seconds
-    const interval = setInterval(pollStatus, 2000);
+    // Poll every 10 seconds to reduce server load
+    const interval = setInterval(pollStatus, 10000);
 
     // Initial poll
     pollStatus();
