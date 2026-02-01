@@ -658,12 +658,12 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
             </Form>
           </div>
 
-          {/* Color Palette Selector - Visual Pairs */}
-          <div className="mb-4">
-            <label className="block text-sm font-medium text-gray-700 mb-2">
-              لوحة الألوان
+          {/* Color Palette Selector - Compact Horizontal */}
+          <div className="mb-3 flex items-center gap-3">
+            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+              الألوان:
             </label>
-            <div className="grid grid-cols-4 gap-2">
+            <div className="flex gap-1.5 flex-wrap">
               {PALETTE_IDS.map((paletteId) => {
                 const palette = COLOR_PALETTES[paletteId];
                 const isSelected = selectedPalette === paletteId;
@@ -678,36 +678,24 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
                         { method: "post" }
                       );
                     }}
-                    className={`relative flex flex-col items-center p-2 rounded-lg border-2 transition-all ${
+                    className={`relative flex gap-0.5 p-1 rounded-md border-2 transition-all ${
                       isSelected
-                        ? "border-orange-500 ring-2 ring-orange-500/30"
+                        ? "border-orange-500 ring-1 ring-orange-500/30"
                         : "border-gray-200 hover:border-orange-300"
                     }`}
-                    title={palette.name}
+                    title={palette.nameAr}
                   >
-                    {/* Color pair preview - shows actual palette combination */}
                     <div
-                      className="w-full h-10 rounded-md mb-1 overflow-hidden"
-                      style={{ background: `linear-gradient(180deg, ${palette.heroBgFrom} 0%, ${palette.heroBgTo} 100%)` }}
-                    >
-                      {/* Primary + Accent color bars */}
-                      <div className="flex h-full items-end p-1 gap-1">
-                        <div
-                          className="flex-1 h-4 rounded-sm"
-                          style={{ backgroundColor: palette.primary }}
-                        />
-                        <div
-                          className="flex-1 h-4 rounded-sm"
-                          style={{ backgroundColor: palette.accent }}
-                        />
-                      </div>
-                    </div>
-                    <span className="text-[10px] text-gray-600 truncate w-full text-center">
-                      {palette.nameAr}
-                    </span>
+                      className="w-5 h-5 rounded-sm"
+                      style={{ backgroundColor: palette.primary }}
+                    />
+                    <div
+                      className="w-5 h-5 rounded-sm"
+                      style={{ backgroundColor: palette.accent }}
+                    />
                     {isSelected && (
-                      <div className="absolute -top-1 -right-1 w-4 h-4 bg-orange-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-[8px]">✓</span>
+                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full flex items-center justify-center">
+                        <span className="text-white text-[6px]">✓</span>
                       </div>
                     )}
                   </button>
