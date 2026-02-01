@@ -12,11 +12,15 @@ export default [
   // App routes (require auth)
   route("dashboard", "routes/dashboard.tsx"),
   route("import", "routes/import.tsx"),
+  route("import/status/:jobId", "routes/import.status.$jobId.tsx"),
   route("products/:id", "routes/products.$id.tsx"),
 
   // Widget endpoint (loaded by Salla stores via App Snippet)
   route("widget", "routes/widget.ts"),
 
-  // API endpoints (for widget to fetch data)
+  // API endpoints
+  route("api/webhooks/salla", "routes/api.webhooks.salla.ts"),
+  route("api/inngest", "routes/api.inngest.ts"),
+  route("api/scrape-status/:jobId", "routes/api.scrape-status.$jobId.ts"),
   route("api/landing/:productId", "routes/api.landing.$productId.ts"),
 ] satisfies RouteConfig;

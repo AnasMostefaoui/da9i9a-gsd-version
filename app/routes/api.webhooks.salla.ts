@@ -57,6 +57,14 @@ function verifySignature(payload: string, signature: string, secret: string): bo
   }
 }
 
+/**
+ * GET handler for webhook URL verification
+ * Salla may ping the URL to verify it's reachable
+ */
+export async function loader() {
+  return Response.json({ status: "ok", endpoint: "salla-webhook" });
+}
+
 export async function action({ request }: ActionFunctionArgs) {
   // Only accept POST requests
   if (request.method !== "POST") {
