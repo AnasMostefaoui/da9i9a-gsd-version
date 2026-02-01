@@ -1,12 +1,12 @@
 import type { Route } from "./+types/products.$id";
 import { Link, Form, useNavigation, useFetcher } from "react-router";
 import { redirect, data } from "react-router";
-import { useState } from "react";
-import { ArrowLeft } from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
+import { ArrowLeft, Loader2 } from "lucide-react";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
 import { getSallaClient } from "~/lib/token-refresh.server";
-import { getGeminiProvider, isGeminiConfigured, generateLandingPageContent, translateToArabic } from "~/services/ai";
+import { inngest } from "~/inngest/client";
 import type { LandingPageContent } from "~/services/ai/types";
 import { LandingPagePreview } from "~/components/landing-page";
 import { COLOR_PALETTES, PALETTE_IDS, getPalette } from "~/lib/color-palettes";
@@ -29,6 +29,8 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     throw new Response("Product not found", { status: 404 });
   }
 
+  const metadata = (product.metadata as Record<string, unknown>) || {};
+
   return {
     id: product.id,
     titleAr: product.titleAr,
@@ -48,6 +50,9 @@ export async function loader({ request, params }: Route.LoaderArgs) {
     contentLang: product.contentLang as "ar" | "en",
     colorPalette: product.colorPalette,
     metadata: product.metadata as Record<string, unknown> | null,
+    // AI processing state
+    aiProcessing: metadata.aiProcessing === true,
+    aiTasks: (metadata.aiTasks as string[]) || [],
   };
 }
 
@@ -68,100 +73,59 @@ export async function action({ request, params }: Route.ActionArgs) {
   }
 
   switch (intent) {
+    // Queue single AI task via Inngest
     case "enhance": {
-      if (!isGeminiConfigured()) {
-        // Mock enhancement for dev without API key
-        await db.product.update({
-          where: { id },
-          data: {
-            titleAr: product.titleAr || "عنوان محسّن بالذكاء الاصطناعي",
-            titleEn: product.titleEn || "AI Enhanced Title",
-            descriptionAr: product.descriptionAr || "وصف محسّن بالذكاء الاصطناعي. هذا منتج رائع يلبي احتياجاتك.",
-            descriptionEn: product.descriptionEn || "AI Enhanced Description. This is a great product that meets your needs.",
-            status: "ENHANCED",
+      const tasks: Array<"enhance" | "translate" | "landing-page"> = ["enhance"];
+      const metadata = (product.metadata as object) || {};
+
+      await db.product.update({
+        where: { id },
+        data: {
+          metadata: {
+            ...metadata,
+            aiProcessing: true,
+            aiTasks: tasks,
+            aiResults: {},
+            aiErrors: [],
           },
-        });
-        return data({ success: true, message: "تم تحسين المنتج (وضع التطوير)", error: null });
-      }
+        },
+      });
 
-      try {
-        const gemini = getGeminiProvider();
+      await inngest.send({
+        name: "product/enhance.requested",
+        data: { productId: id, merchantId, tasks },
+      });
 
-        // Extract metadata for rich signals
-        const metadata = (product.metadata as Record<string, unknown>) || {};
-
-        const enhanced = await gemini.enhanceProduct({
-          title: product.titleEn || product.titleAr || "",
-          description: product.descriptionEn || product.descriptionAr || "",
-          price: Number(product.price),
-          currency: product.currency,
-          images: product.images,
-          brand: metadata.brand as string | undefined,
-          specifications: metadata.specifications as Record<string, string> | undefined,
-          reviewSummary: metadata.reviewSummary as { rating: number; count: number } | undefined,
-          seller: metadata.seller as { name: string; rating?: number } | undefined,
-          platform: product.platform.toLowerCase() as "aliexpress" | "amazon",
-          sourceUrl: product.sourceUrl,
-        });
-
-        await db.product.update({
-          where: { id },
-          data: {
-            titleEn: enhanced.title,
-            descriptionEn: enhanced.description,
-            status: "ENHANCED",
-            metadata: {
-              ...(product.metadata as object || {}),
-              aiProvider: enhanced.provider,
-              aiGeneratedAt: enhanced.generatedAt.toISOString(),
-              highlights: enhanced.highlights,
-            },
-          },
-        });
-
-        return data({ success: true, message: "تم تحسين المنتج بنجاح", error: null });
-      } catch (error) {
-        console.error("Enhancement error:", error);
-        return data({ success: false, message: null, error: "فشل في تحسين المنتج" }, { status: 500 });
-      }
+      return data({ success: true, message: "جاري تحسين المحتوى...", error: null, processing: true });
     }
 
     case "translate-arabic": {
-      if (!isGeminiConfigured()) {
-        return data({ success: false, message: null, error: "Gemini API غير مكوّن" }, { status: 500 });
-      }
-
       if (!product.titleEn) {
         return data({ success: false, message: null, error: "يجب وجود عنوان إنجليزي للترجمة" }, { status: 400 });
       }
 
-      try {
-        const metadata = (product.metadata as Record<string, unknown>) || {};
-        const highlights = metadata.highlights as string[] | undefined;
+      const tasks: Array<"enhance" | "translate" | "landing-page"> = ["translate"];
+      const metadata = (product.metadata as object) || {};
 
-        const arabicContent = await translateToArabic({
-          title: product.titleEn,
-          description: product.descriptionEn || "",
-          highlights,
-        });
-
-        await db.product.update({
-          where: { id },
-          data: {
-            titleAr: arabicContent.titleAr,
-            descriptionAr: arabicContent.descriptionAr,
-            metadata: {
-              ...metadata,
-              highlightsAr: arabicContent.highlightsAr,
-            },
+      await db.product.update({
+        where: { id },
+        data: {
+          metadata: {
+            ...metadata,
+            aiProcessing: true,
+            aiTasks: tasks,
+            aiResults: {},
+            aiErrors: [],
           },
-        });
+        },
+      });
 
-        return data({ success: true, message: "تمت الترجمة للعربية بنجاح", error: null });
-      } catch (error) {
-        console.error("Translation error:", error);
-        return data({ success: false, message: null, error: "فشل في الترجمة" }, { status: 500 });
-      }
+      await inngest.send({
+        name: "product/enhance.requested",
+        data: { productId: id, merchantId, tasks },
+      });
+
+      return data({ success: true, message: "جاري الترجمة للعربية...", error: null, processing: true });
     }
 
     case "push": {
@@ -255,39 +219,54 @@ export async function action({ request, params }: Route.ActionArgs) {
     }
 
     case "generate-landing-page": {
-      try {
-        const metadata = (product.metadata as Record<string, unknown>) || {};
+      const tasks: Array<"enhance" | "translate" | "landing-page"> = ["landing-page"];
+      const metadata = (product.metadata as object) || {};
 
-        const landingContent = await generateLandingPageContent(
-          {
-            titleAr: product.titleAr,
-            titleEn: product.titleEn,
-            descriptionAr: product.descriptionAr,
-            descriptionEn: product.descriptionEn,
-            price: Number(product.price),
-            currency: product.currency,
-            images: product.images,
-            metadata: {
-              brand: metadata.brand as string | undefined,
-              reviewSummary: metadata.reviewSummary as { rating: number; count: number } | undefined,
-              highlights: metadata.highlights as string[] | undefined,
-            },
+      await db.product.update({
+        where: { id },
+        data: {
+          metadata: {
+            ...metadata,
+            aiProcessing: true,
+            aiTasks: tasks,
+            aiResults: {},
+            aiErrors: [],
           },
-          product.contentLang as "ar" | "en"
-        );
+        },
+      });
 
-        await db.product.update({
-          where: { id },
-          data: {
-            landingPageContent: landingContent as unknown as object,
+      await inngest.send({
+        name: "product/enhance.requested",
+        data: { productId: id, merchantId, tasks },
+      });
+
+      return data({ success: true, message: "جاري إنشاء صفحة الهبوط...", error: null, processing: true });
+    }
+
+    // Queue ALL AI tasks at once (enhance → translate → landing page)
+    case "enhance-all": {
+      const tasks: Array<"enhance" | "translate" | "landing-page"> = ["enhance", "translate", "landing-page"];
+      const metadata = (product.metadata as object) || {};
+
+      await db.product.update({
+        where: { id },
+        data: {
+          metadata: {
+            ...metadata,
+            aiProcessing: true,
+            aiTasks: tasks,
+            aiResults: {},
+            aiErrors: [],
           },
-        });
+        },
+      });
 
-        return data({ success: true, message: "تم إنشاء صفحة الهبوط بنجاح", error: null });
-      } catch (error) {
-        console.error("Landing page generation error:", error);
-        return data({ success: false, message: null, error: "فشل في إنشاء صفحة الهبوط" }, { status: 500 });
-      }
+      await inngest.send({
+        name: "product/enhance.requested",
+        data: { productId: id, merchantId, tasks },
+      });
+
+      return data({ success: true, message: "جاري معالجة المنتج بالكامل...", error: null, processing: true });
     }
 
     case "update-palette": {
@@ -316,6 +295,14 @@ const STATUS_CONFIG: Record<string, { labelAr: string; labelEn: string; color: s
   FAILED: { labelAr: "فشل", labelEn: "Failed", color: "bg-red-100 text-red-700" },
 };
 
+interface AIStatus {
+  processing: boolean;
+  tasks: string[];
+  completedTasks: string[];
+  errors: string[];
+  status: string;
+}
+
 function ProductDetailContent({ product, actionData }: { product: Route.ComponentProps["loaderData"]; actionData: Route.ComponentProps["actionData"] }) {
   const { t, language, isRtl } = useLanguage();
   const navigation = useNavigation();
@@ -325,6 +312,49 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
   const [selectedImages, setSelectedImages] = useState<number[]>(product.selectedImages);
   const [selectedPalette, setSelectedPalette] = useState(product.colorPalette);
   const currentPalette = getPalette(selectedPalette);
+
+  // AI Processing state
+  const [aiStatus, setAiStatus] = useState<AIStatus>({
+    processing: product.aiProcessing,
+    tasks: product.aiTasks,
+    completedTasks: [],
+    errors: [],
+    status: product.status,
+  });
+
+  // Poll for AI status when processing
+  const pollAIStatus = useCallback(async () => {
+    try {
+      const response = await fetch(`/api/ai-status/${product.id}`);
+      if (response.ok) {
+        const data: AIStatus = await response.json();
+        setAiStatus(data);
+
+        // If processing just finished, reload the page data
+        if (!data.processing && aiStatus.processing) {
+          window.location.reload();
+        }
+      }
+    } catch (error) {
+      console.error("Failed to poll AI status:", error);
+    }
+  }, [product.id, aiStatus.processing]);
+
+  useEffect(() => {
+    // Start polling if processing
+    if (aiStatus.processing) {
+      const interval = setInterval(pollAIStatus, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [aiStatus.processing, pollAIStatus]);
+
+  // Start polling after action returns processing=true
+  useEffect(() => {
+    const actionResult = actionData as { processing?: boolean } | undefined;
+    if (actionResult?.processing) {
+      setAiStatus(prev => ({ ...prev, processing: true }));
+    }
+  }, [actionData]);
 
   const toggleImage = (index: number) => {
     setSelectedImages(prev =>
@@ -374,7 +404,48 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
       <div className="flex h-[calc(100vh-130px)]">
         {/* Left Panel - Form (55%) */}
         <div className="w-[55%] overflow-y-auto p-6 border-e border-gray-200">
-          {(actionData?.message || actionData?.error) && (
+          {/* AI Processing Banner */}
+          {aiStatus.processing && (
+            <div className="mb-6 p-4 rounded-xl border-2 border-orange-300 bg-gradient-to-r from-orange-50 to-amber-50">
+              <div className="flex items-center gap-3 mb-3">
+                <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
+                <span className="font-semibold text-orange-700">
+                  جاري معالجة المنتج بالذكاء الاصطناعي...
+                </span>
+              </div>
+              <div className="flex gap-2 flex-wrap">
+                {aiStatus.tasks.map((task) => {
+                  const isCompleted = aiStatus.completedTasks.includes(task);
+                  const labels: Record<string, string> = {
+                    enhance: "تحسين المحتوى",
+                    translate: "الترجمة",
+                    "landing-page": "صفحة الهبوط",
+                  };
+                  return (
+                    <span
+                      key={task}
+                      className={`px-3 py-1 rounded-full text-sm font-medium ${
+                        isCompleted
+                          ? "bg-green-100 text-green-700"
+                          : "bg-orange-100 text-orange-700 animate-pulse"
+                      }`}
+                    >
+                      {isCompleted ? "✓" : "⏳"} {labels[task] || task}
+                    </span>
+                  );
+                })}
+              </div>
+              {aiStatus.errors.length > 0 && (
+                <div className="mt-3 text-sm text-red-600">
+                  {aiStatus.errors.map((error, i) => (
+                    <p key={i}>⚠️ {error}</p>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {(actionData?.message || actionData?.error) && !aiStatus.processing && (
             <div className={`mb-6 p-4 rounded-lg border ${
               actionData.error
                 ? "bg-red-50 border-red-200 text-red-600"
@@ -536,6 +607,22 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
             </div>
           )}
 
+          {/* Quick Enhance All Button */}
+          {!aiStatus.processing && product.status !== "PUSHED" && (
+            <div className="mb-6">
+              <Form method="post">
+                <input type="hidden" name="intent" value="enhance-all" />
+                <button
+                  type="submit"
+                  disabled={isSubmitting}
+                  className="w-full px-6 py-4 text-lg font-bold text-white bg-gradient-to-r from-orange-500 via-coral-500 to-pink-500 rounded-xl hover:shadow-xl transition-all disabled:opacity-50"
+                >
+                  🚀 تحسين كامل بالذكاء الاصطناعي (تحسين + ترجمة + صفحة هبوط)
+                </button>
+              </Form>
+            </div>
+          )}
+
           {/* Actions Grid */}
           <div className="grid grid-cols-2 gap-4 mb-6">
             {/* Enhance Card */}
@@ -550,10 +637,10 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
                 <input type="hidden" name="intent" value="enhance" />
                 <button
                   type="submit"
-                  disabled={isSubmitting || product.status === "PUSHED"}
+                  disabled={isSubmitting || aiStatus.processing || product.status === "PUSHED"}
                   className="w-full px-4 py-2 text-sm text-white bg-gradient-to-r from-orange-500 to-coral-500 rounded-lg hover:shadow-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed"
                 >
-                  {isSubmitting && currentIntent === "enhance" ? "جاري التحسين..." : "✨ تحسين"}
+                  {isSubmitting && currentIntent === "enhance" ? "جاري الإرسال..." : "✨ تحسين"}
                 </button>
               </Form>
             </div>
@@ -574,14 +661,14 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
                 <input type="hidden" name="intent" value="translate-arabic" />
                 <button
                   type="submit"
-                  disabled={isSubmitting || !product.titleEn || product.status === "PUSHED"}
+                  disabled={isSubmitting || aiStatus.processing || !product.titleEn || product.status === "PUSHED"}
                   className={`w-full px-4 py-2 text-sm text-white rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed ${
                     product.contentLang === "ar" && !product.titleAr && product.titleEn
                       ? "bg-gradient-to-r from-amber-500 to-orange-500 hover:shadow-lg animate-pulse"
                       : "bg-gradient-to-r from-emerald-500 to-teal-500 hover:shadow-lg"
                   }`}
                 >
-                  {isSubmitting && currentIntent === "translate-arabic" ? "جاري الترجمة..." : "🇸🇦 ترجمة"}
+                  {isSubmitting && currentIntent === "translate-arabic" ? "جاري الإرسال..." : "🇸🇦 ترجمة"}
                 </button>
               </Form>
               {!product.titleEn && (
@@ -604,7 +691,7 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
                 <input type="hidden" name="intent" value="push" />
                 <button
                   type="submit"
-                  disabled={isSubmitting || product.status === "PUSHED"}
+                  disabled={isSubmitting || aiStatus.processing || product.status === "PUSHED"}
                   className="w-full px-4 py-2 text-sm text-white bg-green-600 rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                 >
                   {product.status === "PUSHED" ? "✓ تم النشر" : isSubmitting && currentIntent === "push" ? "جاري النشر..." : "🚀 نشر"}
@@ -646,11 +733,11 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
               <input type="hidden" name="intent" value="generate-landing-page" />
               <button
                 type="submit"
-                disabled={isSubmitting}
+                disabled={isSubmitting || aiStatus.processing}
                 className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-coral-500 rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
               >
                 {isSubmitting && currentIntent === "generate-landing-page"
-                  ? "جاري الإنشاء..."
+                  ? "جاري الإرسال..."
                   : product.landingPageContent
                     ? "🔄 إعادة الإنشاء"
                     : "✨ إنشاء صفحة هبوط"}

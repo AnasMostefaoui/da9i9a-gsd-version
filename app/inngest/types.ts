@@ -36,4 +36,26 @@ export type Events = {
       duration: number;
     };
   };
+  // AI enhancement events
+  "product/enhance.requested": {
+    data: {
+      productId: string;
+      merchantId: string;
+      tasks: Array<"enhance" | "translate" | "landing-page">;
+    };
+  };
+  "product/enhance.completed": {
+    data: {
+      productId: string;
+      tasks: Array<"enhance" | "translate" | "landing-page">;
+      duration: number;
+    };
+  };
+  "product/enhance.failed": {
+    data: {
+      productId: string;
+      error: string;
+      task: "enhance" | "translate" | "landing-page";
+    };
+  };
 };
