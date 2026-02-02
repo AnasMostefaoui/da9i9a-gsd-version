@@ -23,9 +23,9 @@ import {
 export const enhanceProduct = inngest.createFunction(
   {
     id: "enhance-product",
-    // Concurrency limit: max 10 AI calls across all users
+    // Concurrency limit: max 5 AI calls (free tier limit)
     concurrency: {
-      limit: 10,
+      limit: 5,
     },
     retries: 2,
   },
