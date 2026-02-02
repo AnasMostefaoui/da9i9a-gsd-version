@@ -2,14 +2,14 @@
  * Import Status Page
  *
  * Polls the scraping job status and redirects when complete.
- * Shows progress indicator during scraping and error state if failed.
+ * Shows detailed progress indicator during scraping with animated steps.
  */
 
 import type { LoaderFunctionArgs, MetaFunction } from "react-router";
-import { useEffect, useState, useCallback } from "react";
+import { useEffect, useState, useCallback, useRef } from "react";
 import { Link, useNavigate, useLoaderData } from "react-router";
 import { redirect } from "react-router";
-import { ArrowLeft, AlertCircle, Loader, CheckCircle } from "lucide-react";
+import { ArrowLeft, AlertCircle, Loader2, CheckCircle2, Circle, Sparkles, Package, Link2, Database, Image, Wand2, FileCheck } from "lucide-react";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
 import { LanguageProvider, useLanguage } from "~/contexts/LanguageContext";
@@ -68,6 +68,19 @@ interface ScrapeStatusResponse {
   error: string | null;
 }
 
+// Step definitions for the import process
+const IMPORT_STEPS = [
+  { id: 1, labelAr: "إنشاء سجل المنتج", labelEn: "Creating product record", icon: Package, phase: 1 },
+  { id: 2, labelAr: "التحقق من الرابط", labelEn: "Verifying URL", icon: Link2, phase: 1 },
+  { id: 3, labelAr: "الاتصال بالمصدر", labelEn: "Connecting to source", icon: Database, phase: 2 },
+  { id: 4, labelAr: "استخراج عنوان المنتج", labelEn: "Extracting product title", icon: FileCheck, phase: 2 },
+  { id: 5, labelAr: "استخراج تفاصيل المنتج", labelEn: "Extracting product details", icon: Database, phase: 2 },
+  { id: 6, labelAr: "استخراج الأسعار", labelEn: "Extracting prices", icon: Sparkles, phase: 2 },
+  { id: 7, labelAr: "تحميل الصور", labelEn: "Downloading images", icon: Image, phase: 2 },
+  { id: 8, labelAr: "معالجة البيانات", labelEn: "Processing data", icon: Wand2, phase: 3 },
+  { id: 9, labelAr: "جاهز للتحرير", labelEn: "Ready for editing", icon: CheckCircle2, phase: 3 },
+];
+
 function ImportStatusContent() {
   const { jobId, sourceUrl, initialStatus } = useLoaderData<LoaderData>();
   const navigate = useNavigate();
@@ -76,6 +89,30 @@ function ImportStatusContent() {
   const [status, setStatus] = useState(initialStatus);
   const [error, setError] = useState<string | null>(null);
   const [pollCount, setPollCount] = useState(0);
+  const [currentStep, setCurrentStep] = useState(1);
+  const startTimeRef = useRef(Date.now());
+
+  // Simulate step progress based on time (since scraping doesn't give step-by-step status)
+  useEffect(() => {
+    if (status === "IMPORTED" || status === "ENHANCED") {
+      setCurrentStep(IMPORT_STEPS.length);
+      return;
+    }
+    if (status === "FAILED") return;
+
+    // Advance steps based on elapsed time (simulate realistic progress)
+    const stepInterval = setInterval(() => {
+      const elapsed = Date.now() - startTimeRef.current;
+      // Each step takes ~3-5 seconds to complete visually
+      const estimatedStep = Math.min(
+        Math.floor(elapsed / 3500) + 2, // Start at step 2 (step 1 is instant)
+        IMPORT_STEPS.length - 1 // Don't complete last step until actually done
+      );
+      setCurrentStep(estimatedStep);
+    }, 500);
+
+    return () => clearInterval(stepInterval);
+  }, [status]);
 
   const pollStatus = useCallback(async () => {
     try {
@@ -85,40 +122,43 @@ function ImportStatusContent() {
       setStatus(data.status);
 
       if (data.status === "IMPORTED" || data.status === "ENHANCED") {
-        // Success - redirect to product page
-        navigate(`/products/${data.productId}`);
+        // Success - briefly show completion then redirect
+        setCurrentStep(IMPORT_STEPS.length);
+        setTimeout(() => {
+          navigate(`/products/${data.productId}`);
+        }, 1500);
       } else if (data.status === "FAILED") {
-        // Failed - show error
         setError(data.error || "حدث خطأ أثناء استيراد المنتج");
       }
 
       setPollCount((c) => c + 1);
     } catch (err) {
       console.error("Status poll error:", err);
-      // Don't set error for network issues, keep polling
     }
   }, [jobId, navigate]);
 
   useEffect(() => {
-    // Don't poll if already complete or failed
     if (status === "IMPORTED" || status === "ENHANCED" || status === "FAILED") {
       return;
     }
 
-    // Poll every 10 seconds to reduce server load
-    const interval = setInterval(pollStatus, 10000);
-
-    // Initial poll
+    // Poll every 5 seconds for faster feedback
+    const interval = setInterval(pollStatus, 5000);
     pollStatus();
 
     return () => clearInterval(interval);
   }, [status, pollStatus]);
 
-  // Helper to get platform from URL
   const getPlatform = (url: string): string => {
     if (url.includes("aliexpress")) return "AliExpress";
     if (url.includes("amazon")) return "Amazon";
     return "Unknown";
+  };
+
+  const getPlatformColor = (url: string): string => {
+    if (url.includes("aliexpress")) return "from-orange-500 to-red-500";
+    if (url.includes("amazon")) return "from-amber-500 to-orange-500";
+    return "from-gray-500 to-gray-600";
   };
 
   return (
@@ -170,65 +210,118 @@ function ImportStatusContent() {
               </div>
             </div>
           ) : (
-            // Loading state
-            <div className="text-center">
-              {/* Animated loader */}
-              <div className="mx-auto w-20 h-20 mb-8 relative">
-                <div className="absolute inset-0 rounded-full border-4 border-orange-100"></div>
-                <div className="absolute inset-0 rounded-full border-4 border-orange-500 border-t-transparent animate-spin"></div>
-                <div className="absolute inset-0 flex items-center justify-center">
-                  <Loader className="w-8 h-8 text-orange-500 animate-pulse" />
+            // Loading state with detailed progress
+            <div>
+              {/* Header with animated gradient */}
+              <div className="text-center mb-8">
+                <div className={`mx-auto w-16 h-16 rounded-2xl bg-gradient-to-br ${getPlatformColor(sourceUrl)} flex items-center justify-center mb-4 shadow-lg`}>
+                  <Package className="w-8 h-8 text-white" />
+                </div>
+                <h2 className="text-xl font-bold text-gray-900 mb-2">
+                  جاري استيراد المنتج
+                </h2>
+                <p className="text-gray-500 text-sm">
+                  من {getPlatform(sourceUrl)}
+                </p>
+              </div>
+
+              {/* Progress bar */}
+              <div className="mb-8">
+                <div className="flex justify-between text-xs text-gray-500 mb-2">
+                  <span>التقدم</span>
+                  <span>{Math.round((currentStep / IMPORT_STEPS.length) * 100)}%</span>
+                </div>
+                <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-gradient-to-r from-orange-500 via-coral-500 to-pink-500 transition-all duration-500 ease-out"
+                    style={{ width: `${(currentStep / IMPORT_STEPS.length) * 100}%` }}
+                  />
                 </div>
               </div>
 
-              <h2 className="text-xl font-bold text-gray-900 mb-3">
-                جاري استيراد المنتج...
-              </h2>
-              <p className="text-gray-600 mb-6">
-                يتم الآن استخراج بيانات المنتج من {getPlatform(sourceUrl)}
-              </p>
+              {/* Detailed steps checklist */}
+              <div className="space-y-1">
+                {IMPORT_STEPS.map((step, index) => {
+                  const isComplete = currentStep > step.id;
+                  const isCurrent = currentStep === step.id;
+                  const isPending = currentStep < step.id;
+                  const StepIcon = step.icon;
+
+                  return (
+                    <div
+                      key={step.id}
+                      className={`flex items-center gap-3 py-2.5 px-3 rounded-lg transition-all duration-300 ${
+                        isCurrent
+                          ? "bg-orange-50 border border-orange-200"
+                          : isComplete
+                          ? "bg-green-50/50"
+                          : ""
+                      }`}
+                    >
+                      {/* Step indicator */}
+                      <div className="flex-shrink-0">
+                        {isComplete ? (
+                          <div className="w-7 h-7 rounded-full bg-green-500 flex items-center justify-center shadow-sm">
+                            <CheckCircle2 className="w-4 h-4 text-white" />
+                          </div>
+                        ) : isCurrent ? (
+                          <div className="w-7 h-7 rounded-full bg-gradient-to-br from-orange-500 to-coral-500 flex items-center justify-center shadow-md animate-pulse">
+                            <Loader2 className="w-4 h-4 text-white animate-spin" />
+                          </div>
+                        ) : (
+                          <div className="w-7 h-7 rounded-full bg-gray-200 flex items-center justify-center">
+                            <Circle className="w-4 h-4 text-gray-400" />
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Step icon */}
+                      <StepIcon
+                        className={`w-4 h-4 flex-shrink-0 ${
+                          isComplete
+                            ? "text-green-600"
+                            : isCurrent
+                            ? "text-orange-600"
+                            : "text-gray-400"
+                        }`}
+                      />
+
+                      {/* Step label */}
+                      <span
+                        className={`flex-1 text-sm font-medium ${
+                          isComplete
+                            ? "text-green-700"
+                            : isCurrent
+                            ? "text-orange-700"
+                            : "text-gray-400"
+                        }`}
+                      >
+                        {step.labelAr}
+                      </span>
+
+                      {/* Status indicator */}
+                      {isComplete && (
+                        <span className="text-xs text-green-600 font-medium">✓</span>
+                      )}
+                      {isCurrent && (
+                        <span className="text-xs text-orange-600 animate-pulse">جاري...</span>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
 
               {/* Source URL */}
-              <div className="bg-gray-50 rounded-xl p-4 mb-8 border-2 border-gray-200">
-                <p
-                  className="text-sm text-gray-500 truncate"
-                  dir="ltr"
-                >
+              <div className="mt-6 bg-gray-50 rounded-lg p-3 border border-gray-200">
+                <p className="text-xs text-gray-400 mb-1">الرابط:</p>
+                <p className="text-xs text-gray-600 truncate" dir="ltr">
                   {sourceUrl}
                 </p>
               </div>
 
-              {/* Progress indicators */}
-              <div className="space-y-3 text-sm">
-                <div className="flex items-center justify-center gap-3">
-                  <CheckCircle className="w-5 h-5 text-green-500" />
-                  <span className="text-gray-700">تم إنشاء المنتج</span>
-                </div>
-                <div className="flex items-center justify-center gap-3">
-                  <span
-                    className={`w-5 h-5 rounded-full flex items-center justify-center ${
-                      pollCount > 0 ? "bg-green-500" : "bg-orange-500 animate-pulse"
-                    }`}
-                  >
-                    {pollCount > 0 ? (
-                      <CheckCircle className="w-4 h-4 text-white" />
-                    ) : (
-                      <Loader className="w-3 h-3 text-white animate-spin" />
-                    )}
-                  </span>
-                  <span className="text-gray-700">جاري استخراج البيانات...</span>
-                </div>
-                <div className="flex items-center justify-center gap-3">
-                  <span className="w-5 h-5 rounded-full bg-gray-300"></span>
-                  <span className="text-gray-400">
-                    معالجة البيانات
-                  </span>
-                </div>
-              </div>
-
               {/* Estimated time */}
-              <p className="mt-8 text-xs text-gray-400">
-                قد تستغرق العملية من 30 إلى 60 ثانية
+              <p className="mt-4 text-center text-xs text-gray-400">
+                تتم معالجة المنتج تلقائياً، يرجى الانتظار...
               </p>
             </div>
           )}
