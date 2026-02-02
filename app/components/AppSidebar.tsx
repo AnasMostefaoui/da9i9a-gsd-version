@@ -11,8 +11,8 @@ import {
   Plus,
   LogOut,
   Globe,
-  ChevronLeft,
-  ChevronRight,
+  PanelLeftClose,
+  PanelLeft,
   Menu,
   X,
 } from "lucide-react";
@@ -55,8 +55,6 @@ export function AppSidebar({ storeName }: AppSidebarProps) {
   const toggleCollapse = () => setIsCollapsed(!isCollapsed);
   const toggleMobile = () => setIsMobileOpen(!isMobileOpen);
 
-  const CollapseIcon = isRtl ? (isCollapsed ? ChevronLeft : ChevronRight) : (isCollapsed ? ChevronRight : ChevronLeft);
-
   return (
     <>
       {/* Mobile Menu Button */}
@@ -88,21 +86,35 @@ export function AppSidebar({ storeName }: AppSidebarProps) {
           ${isRtl ? "right-0 lg:right-auto" : "left-0 lg:left-auto"}
         `}
       >
-        {/* Logo */}
+        {/* Header with Logo and Collapse */}
         <div className={`p-4 border-b border-gray-100 ${isCollapsed ? "px-3" : ""}`}>
-          <Link to="/dashboard" className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-coral-500 rounded-xl flex items-center justify-center flex-shrink-0">
-              <Zap className="w-6 h-6 text-white" fill="white" />
-            </div>
-            {!isCollapsed && (
-              <div className="overflow-hidden">
-                <h1 className="font-bold text-lg text-gray-900 truncate">في دقيقة</h1>
-                {storeName && (
-                  <p className="text-xs text-gray-500 truncate">{storeName}</p>
-                )}
+          <div className="flex items-center justify-between gap-2">
+            <Link to="/dashboard" className="flex items-center gap-3 min-w-0">
+              <div className="w-10 h-10 bg-gradient-to-br from-orange-500 to-coral-500 rounded-xl flex items-center justify-center flex-shrink-0">
+                <Zap className="w-6 h-6 text-white" fill="white" />
               </div>
-            )}
-          </Link>
+              {!isCollapsed && (
+                <div className="overflow-hidden min-w-0">
+                  <h1 className="font-bold text-lg text-gray-900 truncate">في دقيقة</h1>
+                  {storeName && (
+                    <p className="text-xs text-gray-500 truncate">{storeName}</p>
+                  )}
+                </div>
+              )}
+            </Link>
+            {/* Collapse Toggle - Desktop only */}
+            <button
+              onClick={toggleCollapse}
+              className="hidden lg:flex p-2 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors flex-shrink-0"
+              title={isCollapsed ? (language === "ar" ? "توسيع" : "Expand") : (language === "ar" ? "تصغير" : "Collapse")}
+            >
+              {isCollapsed ? (
+                <PanelLeft className="w-5 h-5" />
+              ) : (
+                <PanelLeftClose className="w-5 h-5" />
+              )}
+            </button>
+          </div>
         </div>
 
         {/* Navigation */}
@@ -182,17 +194,6 @@ export function AppSidebar({ storeName }: AppSidebarProps) {
               </span>
             )}
           </Link>
-
-          {/* Collapse Toggle - Desktop only */}
-          <button
-            onClick={toggleCollapse}
-            className="hidden lg:flex w-full items-center justify-center gap-2 px-3 py-2 rounded-xl text-gray-400 hover:bg-gray-100 hover:text-gray-600 transition-colors"
-          >
-            <CollapseIcon className="w-5 h-5" />
-            {!isCollapsed && (
-              <span className="text-sm">{language === "ar" ? "تصغير" : "Collapse"}</span>
-            )}
-          </button>
         </div>
       </aside>
     </>
