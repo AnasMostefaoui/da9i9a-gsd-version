@@ -2,13 +2,13 @@ import type { Route } from "./+types/products.$id";
 import { Link, Form, useNavigation, useFetcher } from "react-router";
 import { redirect, data } from "react-router";
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Loader2 } from "lucide-react";
+import { ArrowLeft, Loader2, Eye, Pencil } from "lucide-react";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
 import { getSallaClient } from "~/lib/token-refresh.server";
 import { inngest } from "~/inngest/client";
 import type { LandingPageContent } from "~/services/ai/types";
-import { LandingPagePreview } from "~/components/landing-page";
+import { LandingPagePreview, LandingPageEditor, type LandingPageVisibility } from "~/components/landing-page";
 import { COLOR_PALETTES, PALETTE_IDS, getPalette } from "~/lib/color-palettes";
 import { LanguageProvider, useLanguage } from "~/contexts/LanguageContext";
 import Header from "~/components/Header";
@@ -269,6 +269,26 @@ export async function action({ request, params }: Route.ActionArgs) {
       return data({ success: true, message: "جاري معالجة المنتج بالكامل...", error: null, processing: true });
     }
 
+    case "update-landing-page": {
+      const contentStr = formData.get("content") as string;
+      if (!contentStr) {
+        return data({ success: false, message: null, error: "محتوى غير صالح" }, { status: 400 });
+      }
+
+      try {
+        const content = JSON.parse(contentStr);
+        await db.product.update({
+          where: { id },
+          data: {
+            landingPageContent: content,
+          },
+        });
+        return data({ success: true, message: "تم حفظ التعديلات", error: null });
+      } catch {
+        return data({ success: false, message: null, error: "فشل في حفظ التعديلات" }, { status: 500 });
+      }
+    }
+
     case "update-palette": {
       const palette = formData.get("palette") as string;
       if (palette && PALETTE_IDS.includes(palette)) {
@@ -294,6 +314,170 @@ const STATUS_CONFIG: Record<string, { labelAr: string; labelEn: string; color: s
   PUSHED: { labelAr: "تم النشر", labelEn: "Published", color: "bg-green-100 text-green-700" },
   FAILED: { labelAr: "فشل", labelEn: "Failed", color: "bg-red-100 text-red-700" },
 };
+
+// Right Panel Component with Preview/Edit tabs
+interface RightPanelProps {
+  product: Route.ComponentProps["loaderData"];
+  previewImages: string[];
+  currentPalette: ReturnType<typeof getPalette>;
+  selectedPalette: string;
+  setSelectedPalette: (palette: string) => void;
+  paletteFetcher: ReturnType<typeof useFetcher>;
+  isSubmitting: boolean;
+  aiStatus: { processing: boolean };
+  currentIntent: string | undefined;
+}
+
+function RightPanel({
+  product,
+  previewImages,
+  currentPalette,
+  selectedPalette,
+  setSelectedPalette,
+  paletteFetcher,
+  isSubmitting,
+  aiStatus,
+  currentIntent,
+}: RightPanelProps) {
+  const [activeTab, setActiveTab] = useState<"preview" | "edit">("preview");
+  const [editedContent, setEditedContent] = useState<LandingPageContent | null>(
+    product.landingPageContent
+  );
+  const [editedVisibility, setEditedVisibility] = useState<LandingPageVisibility | undefined>();
+
+  const handleContentChange = useCallback((content: LandingPageContent, visibility: LandingPageVisibility) => {
+    setEditedContent(content);
+    setEditedVisibility(visibility);
+  }, []);
+
+  return (
+    <div className="hidden lg:flex lg:w-[45%] bg-gray-100 flex-col">
+      {/* Tab Header */}
+      <div className="flex items-center justify-between p-4 bg-white border-b border-gray-200">
+        {/* Tabs */}
+        <div className="flex bg-gray-100 rounded-lg p-1">
+          <button
+            onClick={() => setActiveTab("preview")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+              activeTab === "preview"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <Eye className="w-4 h-4" />
+            معاينة
+          </button>
+          <button
+            onClick={() => setActiveTab("edit")}
+            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium transition-all ${
+              activeTab === "edit"
+                ? "bg-white text-gray-900 shadow-sm"
+                : "text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            <Pencil className="w-4 h-4" />
+            تعديل
+          </button>
+        </div>
+
+        {/* Generate Button */}
+        <Form method="post">
+          <input type="hidden" name="intent" value="generate-landing-page" />
+          <button
+            type="submit"
+            disabled={isSubmitting || aiStatus.processing}
+            className="px-3 py-1.5 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-coral-500 rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
+          >
+            {isSubmitting && currentIntent === "generate-landing-page"
+              ? "..."
+              : product.landingPageContent
+                ? "🔄 إعادة"
+                : "✨ إنشاء"}
+          </button>
+        </Form>
+      </div>
+
+      {/* Color Palette - Only show in preview mode */}
+      {activeTab === "preview" && (
+        <div className="px-4 py-3 bg-white border-b border-gray-200 flex items-center gap-3">
+          <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
+            الألوان:
+          </label>
+          <div className="flex gap-1.5 flex-wrap">
+            {PALETTE_IDS.map((paletteId) => {
+              const palette = COLOR_PALETTES[paletteId];
+              const isSelected = selectedPalette === paletteId;
+              return (
+                <button
+                  key={paletteId}
+                  type="button"
+                  onClick={() => {
+                    setSelectedPalette(paletteId);
+                    paletteFetcher.submit(
+                      { intent: "update-palette", palette: paletteId },
+                      { method: "post" }
+                    );
+                  }}
+                  className={`relative flex gap-0.5 p-1 rounded-md border-2 transition-all ${
+                    isSelected
+                      ? "border-orange-500 ring-1 ring-orange-500/30"
+                      : "border-gray-200 hover:border-orange-300"
+                  }`}
+                  title={palette.nameAr}
+                >
+                  <div
+                    className="w-5 h-5 rounded-sm"
+                    style={{ backgroundColor: palette.primary }}
+                  />
+                  <div
+                    className="w-5 h-5 rounded-sm"
+                    style={{ backgroundColor: palette.accent }}
+                  />
+                  {isSelected && (
+                    <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full flex items-center justify-center">
+                      <span className="text-white text-[6px]">✓</span>
+                    </div>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      )}
+
+      {/* Content Area */}
+      <div className="flex-1 overflow-hidden">
+        {activeTab === "preview" ? (
+          /* Preview Mode - Phone Frame */
+          <div className="h-full p-4 flex items-start justify-center overflow-hidden">
+            <div className="w-[375px] h-[667px] bg-white rounded-[40px] shadow-xl border-8 border-gray-800 overflow-hidden relative">
+              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-gray-800 rounded-b-2xl z-10" />
+              <div className="h-full overflow-hidden pt-6">
+                <LandingPagePreview
+                  content={editedContent || product.landingPageContent}
+                  productImages={previewImages}
+                  price={product.price}
+                  currency={product.currency}
+                  palette={currentPalette}
+                  visibility={editedVisibility}
+                />
+              </div>
+            </div>
+          </div>
+        ) : (
+          /* Edit Mode - Editor Panel */
+          <div className="h-full bg-white">
+            <LandingPageEditor
+              content={product.landingPageContent}
+              productId={product.id}
+              onContentChange={handleContentChange}
+            />
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
 
 interface AIStatus {
   processing: boolean;
@@ -773,93 +957,18 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
           </div>
         </div>
 
-        {/* Right Panel - Mobile Preview - Hidden on mobile, shown on lg+ */}
-        <div className="hidden lg:flex lg:w-[45%] bg-gray-100 p-6 flex-col">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-lg font-semibold text-gray-900">
-              معاينة صفحة الهبوط
-            </h2>
-            <Form method="post">
-              <input type="hidden" name="intent" value="generate-landing-page" />
-              <button
-                type="submit"
-                disabled={isSubmitting || aiStatus.processing}
-                className="px-4 py-2 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-coral-500 rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
-              >
-                {isSubmitting && currentIntent === "generate-landing-page"
-                  ? "جاري الإرسال..."
-                  : product.landingPageContent
-                    ? "🔄 إعادة الإنشاء"
-                    : "✨ إنشاء صفحة هبوط"}
-              </button>
-            </Form>
-          </div>
-
-          {/* Color Palette Selector - Compact Horizontal */}
-          <div className="mb-3 flex items-center gap-3">
-            <label className="text-sm font-medium text-gray-700 whitespace-nowrap">
-              الألوان:
-            </label>
-            <div className="flex gap-1.5 flex-wrap">
-              {PALETTE_IDS.map((paletteId) => {
-                const palette = COLOR_PALETTES[paletteId];
-                const isSelected = selectedPalette === paletteId;
-                return (
-                  <button
-                    key={paletteId}
-                    type="button"
-                    onClick={() => {
-                      setSelectedPalette(paletteId);
-                      paletteFetcher.submit(
-                        { intent: "update-palette", palette: paletteId },
-                        { method: "post" }
-                      );
-                    }}
-                    className={`relative flex gap-0.5 p-1 rounded-md border-2 transition-all ${
-                      isSelected
-                        ? "border-orange-500 ring-1 ring-orange-500/30"
-                        : "border-gray-200 hover:border-orange-300"
-                    }`}
-                    title={palette.nameAr}
-                  >
-                    <div
-                      className="w-5 h-5 rounded-sm"
-                      style={{ backgroundColor: palette.primary }}
-                    />
-                    <div
-                      className="w-5 h-5 rounded-sm"
-                      style={{ backgroundColor: palette.accent }}
-                    />
-                    {isSelected && (
-                      <div className="absolute -top-1 -right-1 w-3 h-3 bg-orange-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-[6px]">✓</span>
-                      </div>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Mobile Frame */}
-          <div className="flex-1 flex items-start justify-center overflow-hidden">
-            <div className="w-[375px] h-[667px] bg-white rounded-[40px] shadow-xl border-8 border-gray-800 overflow-hidden relative">
-              {/* Phone Notch */}
-              <div className="absolute top-0 left-1/2 -translate-x-1/2 w-32 h-6 bg-gray-800 rounded-b-2xl z-10" />
-
-              {/* Screen Content */}
-              <div className="h-full overflow-hidden pt-6">
-                <LandingPagePreview
-                  content={product.landingPageContent}
-                  productImages={previewImages}
-                  price={product.price}
-                  currency={product.currency}
-                  palette={currentPalette}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
+        {/* Right Panel - Landing Page Preview & Editor - Hidden on mobile */}
+        <RightPanel
+          product={product}
+          previewImages={previewImages}
+          currentPalette={currentPalette}
+          selectedPalette={selectedPalette}
+          setSelectedPalette={setSelectedPalette}
+          paletteFetcher={paletteFetcher}
+          isSubmitting={isSubmitting}
+          aiStatus={aiStatus}
+          currentIntent={currentIntent}
+        />
       </div>
     </div>
   );

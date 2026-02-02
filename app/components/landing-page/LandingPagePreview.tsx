@@ -14,13 +14,34 @@ import { BenefitsGrid } from "./BenefitsGrid";
 import { ComparisonTable } from "./ComparisonTable";
 import { FAQSection } from "./FAQSection";
 
+export interface LandingPageVisibility {
+  hero: boolean;
+  features: boolean;
+  cta: boolean;
+  socialProof: boolean;
+  benefits: boolean;
+  comparison: boolean;
+  faq: boolean;
+}
+
 interface LandingPagePreviewProps {
   content: LandingPageContent | null;
   productImages: string[];
   price: number | string;
   currency: string;
   palette?: ColorPalette;
+  visibility?: LandingPageVisibility;
 }
+
+const DEFAULT_VISIBILITY: LandingPageVisibility = {
+  hero: true,
+  features: true,
+  cta: true,
+  socialProof: true,
+  benefits: true,
+  comparison: true,
+  faq: true,
+};
 
 export function LandingPagePreview({
   content,
@@ -28,8 +49,13 @@ export function LandingPagePreview({
   price,
   currency,
   palette = getPalette("orange"),
+  visibility,
 }: LandingPagePreviewProps) {
   const isRTL = content?.lang === "ar";
+
+  // Get visibility from content._visibility or use provided/default
+  const contentVisibility = (content as LandingPageContent & { _visibility?: LandingPageVisibility })?._visibility;
+  const vis = visibility || contentVisibility || DEFAULT_VISIBILITY;
 
   if (!content) {
     return (
@@ -53,48 +79,64 @@ export function LandingPagePreview({
       dir={isRTL ? "rtl" : "ltr"}
     >
       {/* Hero */}
-      <HeroSection
-        hero={content.hero}
-        images={productImages}
-        price={price}
-        currency={currency}
-        isRTL={isRTL}
-        palette={palette}
-      />
+      {vis.hero && (
+        <HeroSection
+          hero={content.hero}
+          images={productImages}
+          price={price}
+          currency={currency}
+          isRTL={isRTL}
+          palette={palette}
+        />
+      )}
 
       {/* Features */}
-      <FeatureSection features={content.features} isRTL={isRTL} palette={palette} />
+      {vis.features && (
+        <FeatureSection features={content.features} isRTL={isRTL} palette={palette} />
+      )}
 
       {/* CTA Banner */}
-      <CTASection cta={content.cta} isRTL={isRTL} palette={palette} />
+      {vis.cta && (
+        <CTASection cta={content.cta} isRTL={isRTL} palette={palette} />
+      )}
 
       {/* Social Proof */}
-      <SocialProofSection socialProof={content.socialProof} isRTL={isRTL} palette={palette} />
+      {vis.socialProof && (
+        <SocialProofSection socialProof={content.socialProof} isRTL={isRTL} palette={palette} />
+      )}
 
       {/* Benefits Grid */}
-      <BenefitsGrid benefits={content.benefits} isRTL={isRTL} palette={palette} />
+      {vis.benefits && (
+        <BenefitsGrid benefits={content.benefits} isRTL={isRTL} palette={palette} />
+      )}
 
       {/* Comparison */}
-      <ComparisonTable comparison={content.comparison} isRTL={isRTL} palette={palette} />
+      {vis.comparison && (
+        <ComparisonTable comparison={content.comparison} isRTL={isRTL} palette={palette} />
+      )}
 
       {/* FAQ */}
-      <FAQSection faq={content.faq} isRTL={isRTL} palette={palette} />
+      {vis.faq && (
+        <FAQSection faq={content.faq} isRTL={isRTL} palette={palette} />
+      )}
 
-      {/* Footer CTA */}
-      <div
-        className="p-6 text-center"
-        style={{ background: `linear-gradient(135deg, ${palette.ctaBgFrom} 0%, ${palette.ctaBgTo} 100%)` }}
-      >
-        <p className="font-medium mb-3" style={{ color: palette.textOnPrimary }}>
-          {content.cta.headline}
-        </p>
-        <button
-          className="px-8 py-3 rounded-full font-bold shadow-lg"
-          style={{ backgroundColor: "white", color: palette.primary }}
+      {/* Footer CTA - always show if CTA is visible */}
+      {vis.cta && (
+        <div
+          className="p-6 text-center"
+          style={{ background: `linear-gradient(135deg, ${palette.ctaBgFrom} 0%, ${palette.ctaBgTo} 100%)` }}
         >
-          {content.cta.buttonText}
-        </button>
-      </div>
+          <p className="font-medium mb-3" style={{ color: palette.textOnPrimary }}>
+            {content.cta.headline}
+          </p>
+          <button
+            className="px-8 py-3 rounded-full font-bold shadow-lg"
+            style={{ backgroundColor: "white", color: palette.primary }}
+          >
+            {content.cta.buttonText}
+          </button>
+        </div>
+      )}
     </div>
   );
 }

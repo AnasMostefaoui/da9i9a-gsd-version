@@ -1,4 +1,6 @@
 export { LandingPagePreview } from "./LandingPagePreview";
+export type { LandingPageVisibility } from "./LandingPagePreview";
+export { LandingPageEditor } from "./LandingPageEditor";
 export { HeroSection } from "./HeroSection";
 export { FeatureSection } from "./FeatureSection";
 export { CTASection } from "./CTASection";
