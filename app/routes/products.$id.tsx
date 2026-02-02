@@ -378,32 +378,32 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
 
       {/* Sub Header */}
       <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
+        <div className="max-w-7xl mx-auto px-3 lg:px-6 py-3 lg:py-4 flex items-center justify-between">
+          <div className="flex items-center gap-2 lg:gap-4">
             <Link
               to="/dashboard"
-              className="flex items-center gap-2 text-gray-600 hover:text-orange-500 transition-colors"
+              className="flex items-center gap-1 lg:gap-2 text-gray-600 hover:text-orange-500 transition-colors"
             >
-              <ArrowLeft className={`w-5 h-5 ${isRtl ? "rotate-180" : ""}`} />
-              {t("import.back")}
+              <ArrowLeft className={`w-4 lg:w-5 h-4 lg:h-5 ${isRtl ? "rotate-180" : ""}`} />
+              <span className="text-sm lg:text-base">{t("import.back")}</span>
             </Link>
-            <h1 className="text-xl font-bold">{t("config.title")}</h1>
+            <h1 className="text-base lg:text-xl font-bold hidden sm:block">{t("config.title")}</h1>
           </div>
-          <div className="flex items-center gap-3">
-            <span className="text-xs text-gray-500">
+          <div className="flex items-center gap-2 lg:gap-3">
+            <span className="text-xs text-gray-500 hidden sm:inline">
               {product.contentLang === "ar" ? "🇸🇦 العربية" : "🇺🇸 English"}
             </span>
-            <span className={`px-3 py-1 text-sm rounded-full ${statusConfig.color}`}>
+            <span className={`px-2 lg:px-3 py-0.5 lg:py-1 text-xs lg:text-sm rounded-full ${statusConfig.color}`}>
               {statusLabel}
             </span>
           </div>
         </div>
       </div>
 
-      {/* Content - Side by Side Layout */}
-      <div className="flex h-[calc(100vh-130px)]">
-        {/* Left Panel - Form (55%) */}
-        <div className="w-[55%] overflow-y-auto p-6 border-e border-gray-200">
+      {/* Content - Responsive Layout */}
+      <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-130px)]">
+        {/* Main Panel - Form */}
+        <div className="flex-1 lg:w-[55%] overflow-y-auto p-4 lg:p-6 lg:border-e border-gray-200">
           {/* AI Processing Banner */}
           {aiStatus.processing && (
             <div className="mb-6 p-4 rounded-xl border-2 border-orange-300 bg-gradient-to-r from-orange-50 to-amber-50">
@@ -456,14 +456,14 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
           )}
 
           {/* Images Section */}
-          <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+          <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-4 lg:p-6 mb-4 lg:mb-6">
+            <h2 className="text-base lg:text-lg font-semibold text-gray-900 mb-2 lg:mb-4">
               صور المنتج
             </h2>
-            <p className="text-sm text-gray-600 mb-4">
+            <p className="text-xs lg:text-sm text-gray-600 mb-3 lg:mb-4">
               اختر الصور التي تريد استخدامها في متجرك
             </p>
-            <div className="grid grid-cols-4 gap-3">
+            <div className="grid grid-cols-3 sm:grid-cols-4 gap-2 lg:gap-3">
               {product.images.map((image, index) => (
                 <button
                   key={index}
@@ -490,19 +490,19 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
           <Form
             method="post"
             key={`${product.titleAr}-${product.descriptionAr}`}
-            className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-6 mb-6"
+            className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-4 lg:p-6 mb-4 lg:mb-6"
           >
             <input type="hidden" name="intent" value="update" />
             <input type="hidden" name="selectedImages" value={JSON.stringify(selectedImages)} />
 
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+            <h2 className="text-base lg:text-lg font-semibold text-gray-900 mb-3 lg:mb-4">
               تفاصيل المنتج
             </h2>
 
-            <div className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-3 lg:space-y-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
                     العنوان (عربي)
                   </label>
                   <input
@@ -513,7 +513,7 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
                     العنوان (إنجليزي)
                   </label>
                   <input
@@ -526,9 +526,9 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
                 </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
                     الوصف (عربي)
                   </label>
                   <textarea
@@ -539,7 +539,7 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
                     الوصف (إنجليزي)
                   </label>
                   <textarea
@@ -552,9 +552,9 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
                 </div>
               </div>
 
-              <div className="grid grid-cols-3 gap-4">
+              <div className="grid grid-cols-2 lg:grid-cols-3 gap-3 lg:gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
                     السعر
                   </label>
                   <input
@@ -567,7 +567,7 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                  <label className="block text-xs lg:text-sm font-medium text-gray-700 mb-1">
                     العملة
                   </label>
                   <input
@@ -577,7 +577,7 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
                     className="w-full px-3 py-2 text-sm border-2 border-gray-200 rounded-lg bg-gray-100 text-gray-500"
                   />
                 </div>
-                <div className="flex items-end">
+                <div className="col-span-2 lg:col-span-1 flex items-end">
                   <button
                     type="submit"
                     disabled={isSubmitting}
@@ -609,28 +609,29 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
 
           {/* Quick Enhance All Button */}
           {!aiStatus.processing && product.status !== "PUSHED" && (
-            <div className="mb-6">
+            <div className="mb-4 lg:mb-6">
               <Form method="post">
                 <input type="hidden" name="intent" value="enhance-all" />
                 <button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full px-6 py-4 text-lg font-bold text-white bg-gradient-to-r from-orange-500 via-coral-500 to-pink-500 rounded-xl hover:shadow-xl transition-all disabled:opacity-50"
+                  className="w-full px-4 lg:px-6 py-3 lg:py-4 text-sm lg:text-lg font-bold text-white bg-gradient-to-r from-orange-500 via-coral-500 to-pink-500 rounded-xl hover:shadow-xl transition-all disabled:opacity-50"
                 >
-                  🚀 تحسين كامل بالذكاء الاصطناعي (تحسين + ترجمة + صفحة هبوط)
+                  🚀 تحسين كامل بالذكاء الاصطناعي
+                  <span className="hidden sm:inline"> (تحسين + ترجمة + صفحة هبوط)</span>
                 </button>
               </Form>
             </div>
           )}
 
-          {/* Actions Grid */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
+          {/* Actions Grid - Stack on mobile */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 lg:gap-4 mb-4 lg:mb-6">
             {/* Enhance Card */}
-            <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-4">
-              <h3 className="font-semibold text-gray-900 mb-2">
+            <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-3 lg:p-4">
+              <h3 className="font-semibold text-gray-900 mb-1 lg:mb-2 text-sm lg:text-base">
                 تحسين بالذكاء الاصطناعي
               </h3>
-              <p className="text-xs text-gray-600 mb-3">
+              <p className="text-xs text-gray-600 mb-2 lg:mb-3">
                 تحسين العنوان والوصف تلقائياً
               </p>
               <Form method="post">
@@ -646,15 +647,15 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
             </div>
 
             {/* Translate to Arabic Card */}
-            <div className={`bg-white rounded-xl shadow-sm border-2 p-4 ${
+            <div className={`bg-white rounded-xl shadow-sm border-2 p-3 lg:p-4 ${
               product.contentLang === "ar" && !product.titleAr && product.titleEn
                 ? "border-amber-400 ring-2 ring-amber-200"
                 : "border-gray-200"
             }`}>
-              <h3 className="font-semibold text-gray-900 mb-2">
+              <h3 className="font-semibold text-gray-900 mb-1 lg:mb-2 text-sm lg:text-base">
                 ترجمة للعربية
               </h3>
-              <p className="text-xs text-gray-600 mb-3">
+              <p className="text-xs text-gray-600 mb-2 lg:mb-3">
                 ترجمة المحتوى بأسلوب سعودي
               </p>
               <Form method="post">
@@ -675,16 +676,13 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
                 <p className="mt-2 text-xs text-amber-600">يجب وجود عنوان إنجليزي</p>
               )}
             </div>
-          </div>
 
-          {/* Second Actions Row */}
-          <div className="grid grid-cols-2 gap-4 mb-6">
             {/* Push to Salla Card */}
-            <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-4">
-              <h3 className="font-semibold text-gray-900 mb-2">
+            <div className="bg-white rounded-xl shadow-sm border-2 border-gray-200 p-3 lg:p-4 sm:col-span-2 lg:col-span-1">
+              <h3 className="font-semibold text-gray-900 mb-1 lg:mb-2 text-sm lg:text-base">
                 نشر في سلة
               </h3>
-              <p className="text-xs text-gray-600 mb-3">
+              <p className="text-xs text-gray-600 mb-2 lg:mb-3">
                 إنشاء المنتج في متجرك
               </p>
               <Form method="post">
@@ -705,8 +703,60 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
             </div>
           </div>
 
+          {/* Mobile-only: Landing Page Controls */}
+          <div className="lg:hidden bg-white rounded-xl shadow-sm border-2 border-gray-200 p-4 mb-4">
+            <div className="flex items-center justify-between mb-3">
+              <h3 className="font-semibold text-gray-900 text-sm">
+                صفحة الهبوط
+              </h3>
+              <Form method="post">
+                <input type="hidden" name="intent" value="generate-landing-page" />
+                <button
+                  type="submit"
+                  disabled={isSubmitting || aiStatus.processing}
+                  className="px-3 py-1.5 text-xs font-medium text-white bg-gradient-to-r from-orange-500 to-coral-500 rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
+                >
+                  {isSubmitting && currentIntent === "generate-landing-page"
+                    ? "جاري..."
+                    : product.landingPageContent
+                      ? "🔄 إعادة"
+                      : "✨ إنشاء"}
+                </button>
+              </Form>
+            </div>
+            {/* Color Palette for Mobile */}
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-gray-600">الألوان:</span>
+              {PALETTE_IDS.slice(0, 6).map((paletteId) => {
+                const palette = COLOR_PALETTES[paletteId];
+                const isSelected = selectedPalette === paletteId;
+                return (
+                  <button
+                    key={paletteId}
+                    type="button"
+                    onClick={() => {
+                      setSelectedPalette(paletteId);
+                      paletteFetcher.submit(
+                        { intent: "update-palette", palette: paletteId },
+                        { method: "post" }
+                      );
+                    }}
+                    className={`flex gap-0.5 p-0.5 rounded border-2 transition-all ${
+                      isSelected
+                        ? "border-orange-500"
+                        : "border-gray-200"
+                    }`}
+                  >
+                    <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: palette.primary }} />
+                    <div className="w-4 h-4 rounded-sm" style={{ backgroundColor: palette.accent }} />
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
           {/* Source Info */}
-          <div className="bg-gray-50 rounded-xl p-4 border-2 border-gray-200">
+          <div className="bg-gray-50 rounded-xl p-3 lg:p-4 border-2 border-gray-200">
             <p className="text-xs text-gray-500 mb-1">المصدر:</p>
             <p className="text-sm text-gray-600 mb-2">
               {product.platform === "ALIEXPRESS" ? "AliExpress" : "Amazon"}
@@ -723,8 +773,8 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
           </div>
         </div>
 
-        {/* Right Panel - Mobile Preview (45%) */}
-        <div className="w-[45%] bg-gray-100 p-6 flex flex-col">
+        {/* Right Panel - Mobile Preview - Hidden on mobile, shown on lg+ */}
+        <div className="hidden lg:flex lg:w-[45%] bg-gray-100 p-6 flex-col">
           <div className="flex items-center justify-between mb-4">
             <h2 className="text-lg font-semibold text-gray-900">
               معاينة صفحة الهبوط
