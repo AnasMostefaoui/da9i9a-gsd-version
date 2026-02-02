@@ -2,7 +2,7 @@ import type { Route } from "./+types/products.$id";
 import { Link, Form, useNavigation, useFetcher } from "react-router";
 import { redirect, data } from "react-router";
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Loader2, Eye, Pencil, X } from "lucide-react";
+import { ArrowLeft, Loader2, Eye, Pencil, X, CheckCircle, Sparkles } from "lucide-react";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
 import { getSallaClient } from "~/lib/token-refresh.server";
@@ -367,6 +367,80 @@ function RightPanel({
     setEditedVisibility(visibility);
   }, []);
 
+  const hasLandingPage = !!product.landingPageContent;
+
+  // Empty state - No landing page yet
+  if (!hasLandingPage) {
+    return (
+      <div className="hidden lg:flex lg:w-[45%] bg-gradient-to-br from-orange-50 via-white to-amber-50 flex-col items-center justify-center p-8">
+        <div className="max-w-sm text-center">
+          {/* Illustration */}
+          <div className="w-24 h-24 mx-auto mb-6 bg-gradient-to-br from-orange-100 to-amber-100 rounded-3xl flex items-center justify-center">
+            <Sparkles className="w-12 h-12 text-orange-500" />
+          </div>
+
+          {/* Title */}
+          <h3 className="text-xl font-bold text-gray-900 mb-3">
+            صفحة هبوط احترافية
+          </h3>
+
+          {/* Description */}
+          <p className="text-gray-600 mb-6 leading-relaxed">
+            أنشئ صفحة هبوط جذابة لمنتجك بضغطة زر واحدة. الذكاء الاصطناعي سيكتب لك محتوى مقنع يزيد مبيعاتك.
+          </p>
+
+          {/* Generate Button */}
+          <Form method="post">
+            <input type="hidden" name="intent" value="generate-landing-page" />
+            <button
+              type="submit"
+              disabled={isSubmitting || aiStatus.processing}
+              className="inline-flex items-center gap-2 px-6 py-3 text-base font-semibold text-white bg-gradient-to-r from-orange-500 to-coral-500 rounded-xl hover:shadow-lg hover:scale-105 transition-all disabled:opacity-50 disabled:hover:scale-100"
+            >
+              {isSubmitting && currentIntent === "generate-landing-page" ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  جاري الإنشاء...
+                </>
+              ) : aiStatus.processing ? (
+                <>
+                  <Loader2 className="w-5 h-5 animate-spin" />
+                  قيد المعالجة...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="w-5 h-5" />
+                  إنشاء صفحة الهبوط
+                </>
+              )}
+            </button>
+          </Form>
+
+          {/* Features */}
+          <div className="mt-8 grid grid-cols-2 gap-4 text-sm text-gray-500">
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              <span>عناوين جذابة</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              <span>مميزات المنتج</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              <span>أسئلة شائعة</span>
+            </div>
+            <div className="flex items-center gap-2">
+              <CheckCircle className="w-4 h-4 text-green-500" />
+              <span>دعوة للشراء</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // Has landing page - Show preview/edit tabs
   return (
     <div className="hidden lg:flex lg:w-[45%] bg-gray-100 flex-col">
       {/* Tab Header */}
@@ -397,19 +471,17 @@ function RightPanel({
           </button>
         </div>
 
-        {/* Generate Button */}
+        {/* Regenerate Button */}
         <Form method="post">
           <input type="hidden" name="intent" value="generate-landing-page" />
           <button
             type="submit"
             disabled={isSubmitting || aiStatus.processing}
-            className="px-3 py-1.5 text-sm font-medium text-white bg-gradient-to-r from-orange-500 to-coral-500 rounded-lg hover:shadow-lg transition-all disabled:opacity-50"
+            className="px-3 py-1.5 text-sm font-medium text-orange-600 border border-orange-200 bg-orange-50 rounded-lg hover:bg-orange-100 transition-all disabled:opacity-50"
           >
             {isSubmitting && currentIntent === "generate-landing-page"
               ? "..."
-              : product.landingPageContent
-                ? "🔄 إعادة"
-                : "✨ إنشاء"}
+              : "🔄 إعادة الإنشاء"}
           </button>
         </Form>
       </div>
@@ -549,17 +621,36 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
     }
   }, [aiStatus.processing, pollAIStatus]);
 
+  // Toast notification state
+  const [toast, setToast] = useState<{ type: "success" | "error"; message: string } | null>(null);
+
   // Handle action results - start polling or stop on cancel
   useEffect(() => {
-    const actionResult = actionData as { processing?: boolean; success?: boolean; message?: string } | undefined;
+    const actionResult = actionData as { processing?: boolean; success?: boolean; message?: string; error?: string } | undefined;
     if (actionResult?.processing) {
       setAiStatus(prev => ({ ...prev, processing: true }));
     }
     // Handle cancel success - clear processing state
     if (actionResult?.success && actionResult?.message === "تم إلغاء المعالجة") {
-      setAiStatus(prev => ({ ...prev, processing: false, tasks: [], errors: ["Cancelled by user"] }));
+      setAiStatus(prev => ({ ...prev, processing: false, tasks: [], errors: [] }));
+      setToast({ type: "success", message: "تم إلغاء المعالجة بنجاح" });
+    }
+    // Show other success/error messages as toast
+    if (actionResult?.message && actionResult?.message !== "تم إلغاء المعالجة" && !actionResult?.processing) {
+      setToast({ type: "success", message: actionResult.message });
+    }
+    if (actionResult?.error) {
+      setToast({ type: "error", message: actionResult.error });
     }
   }, [actionData]);
+
+  // Auto-dismiss toast after 4 seconds
+  useEffect(() => {
+    if (toast) {
+      const timer = setTimeout(() => setToast(null), 4000);
+      return () => clearTimeout(timer);
+    }
+  }, [toast]);
 
   const toggleImage = (index: number) => {
     setSelectedImages(prev =>
@@ -663,13 +754,27 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
             </div>
           )}
 
-          {(actionData?.message || actionData?.error) && !aiStatus.processing && (
-            <div className={`mb-6 p-4 rounded-lg border ${
-              actionData.error
-                ? "bg-red-50 border-red-200 text-red-600"
-                : "bg-green-50 border-green-200 text-green-600"
-            }`}>
-              {actionData.message || actionData.error}
+          {/* Toast Notification */}
+          {toast && (
+            <div
+              className={`fixed top-20 right-4 z-50 flex items-center gap-3 px-4 py-3 rounded-xl shadow-lg border animate-in slide-in-from-right-5 ${
+                toast.type === "success"
+                  ? "bg-green-50 border-green-200 text-green-700"
+                  : "bg-red-50 border-red-200 text-red-700"
+              }`}
+            >
+              {toast.type === "success" ? (
+                <CheckCircle className="w-5 h-5 text-green-500 flex-shrink-0" />
+              ) : (
+                <X className="w-5 h-5 text-red-500 flex-shrink-0" />
+              )}
+              <span className="text-sm font-medium">{toast.message}</span>
+              <button
+                onClick={() => setToast(null)}
+                className="p-1 hover:bg-black/5 rounded-full transition-colors"
+              >
+                <X className="w-4 h-4" />
+              </button>
             </div>
           )}
 
