@@ -22,6 +22,7 @@ export default [
   route("api/webhooks/salla", "routes/api.webhooks.salla.ts"),
   route("api/inngest", "routes/api.inngest.ts"),
   route("api/scrape-status/:jobId", "routes/api.scrape-status.$jobId.ts"),
+  route("api/ai-status/:productId", "routes/api.ai-status.$productId.ts"),
   route("api/landing/:productId", "routes/api.landing.$productId.ts"),
   route("api/debug-session", "routes/api.debug-session.ts"),
 ] satisfies RouteConfig;
