@@ -13,7 +13,7 @@ import { ArrowLeft, AlertCircle, Loader2, CheckCircle2, Circle, Sparkles, Packag
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
 import { LanguageProvider, useLanguage } from "~/contexts/LanguageContext";
-import Header from "~/components/Header";
+import { AppLayout } from "~/components/AppSidebar";
 
 interface LoaderData {
   jobId: string;
@@ -162,25 +162,9 @@ function ImportStatusContent() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-coral-50">
-      <Header showAuth />
-
-      {/* Sub Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center gap-4">
-          <Link
-            to="/import"
-            className="flex items-center gap-2 text-gray-600 hover:text-orange-500 transition-colors"
-          >
-            <ArrowLeft className={`w-5 h-5 ${isRtl ? "rotate-180" : ""}`} />
-            {t("import.back")}
-          </Link>
-          <h1 className="text-xl font-bold">{t("import.importing")}</h1>
-        </div>
-      </div>
-
+    <AppLayout>
       {/* Content */}
-      <div className="max-w-xl mx-auto px-6 py-12">
+      <div className="max-w-xl mx-auto px-6 py-12 pt-20 lg:pt-12">
         <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-200 p-8">
           {status === "FAILED" ? (
             // Error state
@@ -327,7 +311,7 @@ function ImportStatusContent() {
           )}
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }
 

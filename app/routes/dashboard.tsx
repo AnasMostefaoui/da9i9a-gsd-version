@@ -4,7 +4,7 @@ import { Plus, Package, Upload, Edit, Eye, Zap } from "lucide-react";
 import { db } from "~/lib/db.server";
 import { requireMerchant, isDevBypass, DEV_MERCHANT_ID } from "~/lib/session.server";
 import { LanguageProvider, useLanguage } from "~/contexts/LanguageContext";
-import Header from "~/components/Header";
+import { AppLayout } from "~/components/AppSidebar";
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "لوحة التحكم - في دقيقة" }];
@@ -97,10 +97,8 @@ function DashboardContent({ merchant, products }: DashboardContentProps) {
   const draftCount = products.filter((p) => !["PUSHED", "FAILED"].includes(p.status)).length;
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-coral-50">
-      <Header storeName={merchant.storeName} showAuth />
-
-      <div className="max-w-7xl mx-auto px-6 py-8">
+    <AppLayout storeName={merchant.storeName}>
+      <div className="max-w-6xl mx-auto px-6 py-8 pt-16 lg:pt-8">
         {/* Dashboard Header */}
         <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-8">
           <div>
@@ -241,7 +239,7 @@ function DashboardContent({ merchant, products }: DashboardContentProps) {
           )}
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }
 

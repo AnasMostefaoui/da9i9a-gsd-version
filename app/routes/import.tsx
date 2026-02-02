@@ -8,7 +8,7 @@ import { requireMerchant } from "~/lib/session.server";
 import { detectPlatform } from "~/services/scraping/index.server";
 import { inngest } from "~/inngest/client";
 import { LanguageProvider, useLanguage } from "~/contexts/LanguageContext";
-import Header from "~/components/Header";
+import { AppLayout } from "~/components/AppSidebar";
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "استيراد منتج - في دقيقة" }];
@@ -114,18 +114,8 @@ function ImportContent({ actionData }: { actionData: ActionData | undefined }) {
   const [contentLang, setContentLang] = useState<"ar" | "en">("ar");
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-coral-50">
-      <Header showAuth />
-
-      <div className="max-w-4xl mx-auto px-6 py-8">
-        {/* Back Button */}
-        <Link
-          to="/dashboard"
-          className="inline-flex items-center gap-2 text-gray-600 hover:text-orange-500 mb-6 transition-colors"
-        >
-          <ArrowLeft className={`w-5 h-5 ${isRtl ? "rotate-180" : ""}`} />
-          {t("import.back")}
-        </Link>
+    <AppLayout>
+      <div className="max-w-4xl mx-auto px-6 py-8 pt-16 lg:pt-8">
 
         {/* Main Card */}
         <div className="bg-white rounded-2xl shadow-xl border-2 border-gray-200 overflow-hidden">
@@ -277,7 +267,7 @@ function ImportContent({ actionData }: { actionData: ActionData | undefined }) {
           </div>
         </div>
       </div>
-    </div>
+    </AppLayout>
   );
 }
 

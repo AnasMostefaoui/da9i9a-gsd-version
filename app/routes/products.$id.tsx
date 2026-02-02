@@ -11,7 +11,7 @@ import type { LandingPageContent } from "~/services/ai/types";
 import { LandingPagePreview, LandingPageEditor, type LandingPageVisibility } from "~/components/landing-page";
 import { COLOR_PALETTES, PALETTE_IDS, getPalette } from "~/lib/color-palettes";
 import { LanguageProvider, useLanguage } from "~/contexts/LanguageContext";
-import Header from "~/components/Header";
+import { AppLayout } from "~/components/AppSidebar";
 
 export function meta({}: Route.MetaArgs) {
   return [{ title: "تحرير المنتج - في دقيقة" }];
@@ -669,35 +669,25 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
     : product.images.slice(0, 5);
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-orange-50 via-white to-coral-50">
-      <Header showAuth />
-
-      {/* Sub Header */}
-      <div className="bg-white border-b border-gray-200">
-        <div className="max-w-7xl mx-auto px-3 lg:px-6 py-3 lg:py-4 flex items-center justify-between">
-          <div className="flex items-center gap-2 lg:gap-4">
-            <Link
-              to="/dashboard"
-              className="flex items-center gap-1 lg:gap-2 text-gray-600 hover:text-orange-500 transition-colors"
-            >
-              <ArrowLeft className={`w-4 lg:w-5 h-4 lg:h-5 ${isRtl ? "rotate-180" : ""}`} />
-              <span className="text-sm lg:text-base">{t("import.back")}</span>
-            </Link>
-            <h1 className="text-base lg:text-xl font-bold hidden sm:block">{t("config.title")}</h1>
-          </div>
-          <div className="flex items-center gap-2 lg:gap-3">
-            <span className="text-xs text-gray-500 hidden sm:inline">
-              {product.contentLang === "ar" ? "🇸🇦 العربية" : "🇺🇸 English"}
-            </span>
-            <span className={`px-2 lg:px-3 py-0.5 lg:py-1 text-xs lg:text-sm rounded-full ${statusConfig.color}`}>
-              {statusLabel}
-            </span>
-          </div>
+    <AppLayout>
+      {/* Page Header */}
+      <div className="bg-white border-b border-gray-200 px-4 lg:px-6 py-3 flex items-center justify-between pt-14 lg:pt-3">
+        <div className="flex items-center gap-3">
+          <Link
+            to="/dashboard"
+            className="lg:hidden flex items-center gap-1 text-gray-600 hover:text-orange-500 transition-colors"
+          >
+            <ArrowLeft className={`w-4 h-4 ${isRtl ? "rotate-180" : ""}`} />
+          </Link>
+          <h1 className="text-lg font-bold text-gray-900">{t("config.title")}</h1>
         </div>
+        <span className={`px-3 py-1 text-sm rounded-full ${statusConfig.color}`}>
+          {statusLabel}
+        </span>
       </div>
 
       {/* Content - Responsive Layout */}
-      <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-130px)]">
+      <div className="flex flex-col lg:flex-row lg:h-[calc(100vh-57px)]">
         {/* Main Panel - Form */}
         <div className="flex-1 lg:w-[55%] overflow-y-auto p-4 lg:p-6 lg:border-e border-gray-200">
           {/* AI Processing Banner */}
@@ -1109,7 +1099,7 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
           currentIntent={currentIntent}
         />
       </div>
-    </div>
+    </AppLayout>
   );
 }
 
