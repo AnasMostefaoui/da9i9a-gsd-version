@@ -2,7 +2,7 @@ import type { Route } from "./+types/products.$id";
 import { Link, Form, useNavigation, useFetcher } from "react-router";
 import { redirect, data } from "react-router";
 import { useState, useEffect, useCallback } from "react";
-import { ArrowLeft, Loader2, Eye, Pencil } from "lucide-react";
+import { ArrowLeft, Loader2, Eye, Pencil, X } from "lucide-react";
 import { db } from "~/lib/db.server";
 import { requireMerchant } from "~/lib/session.server";
 import { getSallaClient } from "~/lib/token-refresh.server";
@@ -289,6 +289,23 @@ export async function action({ request, params }: Route.ActionArgs) {
       }
     }
 
+    case "cancel-ai-processing": {
+      // Clear stuck AI processing state
+      const currentMetadata = (product.metadata as Record<string, unknown>) || {};
+      await db.product.update({
+        where: { id },
+        data: {
+          metadata: {
+            ...currentMetadata,
+            aiProcessing: false,
+            aiTasks: [],
+            aiErrors: [...(currentMetadata.aiErrors as string[] || []), "Cancelled by user"],
+          },
+        },
+      });
+      return data({ success: true, message: "تم إلغاء المعالجة", error: null });
+    }
+
     case "update-palette": {
       const palette = formData.get("palette") as string;
       if (palette && PALETTE_IDS.includes(palette)) {
@@ -532,11 +549,15 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
     }
   }, [aiStatus.processing, pollAIStatus]);
 
-  // Start polling after action returns processing=true
+  // Handle action results - start polling or stop on cancel
   useEffect(() => {
-    const actionResult = actionData as { processing?: boolean } | undefined;
+    const actionResult = actionData as { processing?: boolean; success?: boolean; message?: string } | undefined;
     if (actionResult?.processing) {
       setAiStatus(prev => ({ ...prev, processing: true }));
+    }
+    // Handle cancel success - clear processing state
+    if (actionResult?.success && actionResult?.message === "تم إلغاء المعالجة") {
+      setAiStatus(prev => ({ ...prev, processing: false, tasks: [], errors: ["Cancelled by user"] }));
     }
   }, [actionData]);
 
@@ -591,11 +612,24 @@ function ProductDetailContent({ product, actionData }: { product: Route.Componen
           {/* AI Processing Banner */}
           {aiStatus.processing && (
             <div className="mb-6 p-4 rounded-xl border-2 border-orange-300 bg-gradient-to-r from-orange-50 to-amber-50">
-              <div className="flex items-center gap-3 mb-3">
-                <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
-                <span className="font-semibold text-orange-700">
-                  جاري معالجة المنتج بالذكاء الاصطناعي...
-                </span>
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center gap-3">
+                  <Loader2 className="w-5 h-5 text-orange-500 animate-spin" />
+                  <span className="font-semibold text-orange-700">
+                    جاري معالجة المنتج بالذكاء الاصطناعي...
+                  </span>
+                </div>
+                <Form method="post">
+                  <input type="hidden" name="intent" value="cancel-ai-processing" />
+                  <button
+                    type="submit"
+                    className="flex items-center gap-1 px-3 py-1.5 text-xs font-medium text-gray-600 hover:text-red-600 bg-white border border-gray-300 hover:border-red-300 rounded-lg transition-colors"
+                    title="إلغاء المعالجة"
+                  >
+                    <X className="w-3.5 h-3.5" />
+                    <span className="hidden sm:inline">إلغاء</span>
+                  </button>
+                </Form>
               </div>
               <div className="flex gap-2 flex-wrap">
                 {aiStatus.tasks.map((task) => {
